@@ -525,12 +525,7 @@ def run_agent_stream(user_input, session_id="default", use_tools=True, user_emai
             if iteration < MAX_ITERATIONS:
                 yield {"type": "thinking", "message": "正在综合信息生成回复..."}
         else:
-            # 无 tool_call，最终回复 → GAN 评价循环
-            messages.append({"role": "assistant", "content": full_content})
-            if len(messages) > 15:
-                chat_history[session_id] = [messages[0]] + messages[-10:]
-
-            # 完成回答
+            # 无 tool_call，最终回复
             messages.append({"role": "assistant", "content": full_content})
             if len(messages) > 15:
                 chat_history[session_id] = [messages[0]] + messages[-10:]

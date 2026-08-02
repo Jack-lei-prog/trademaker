@@ -6,9 +6,6 @@
 import json
 import re
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from typing import Dict, List, Any
 
@@ -461,7 +458,6 @@ def send_email(to_email: str, subject: str, body: str, to_name: str = "", from_e
     }, ensure_ascii=False)
 
 
-# ========== 工具注册表 ==========
 # ========== 工具10：邮件状态检查 ==========
 def check_email_status(user_email: str = "") -> str:
     """

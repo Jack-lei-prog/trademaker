@@ -805,10 +805,47 @@ function updateStreamText(msgDiv, text) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+function addAnswerToolbar(msgDiv, text) {
+    var content = msgDiv.querySelector('.msg-content');
+    if (!content) return;
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'answer-toolbar';
+    toolbar.style.cssText = 'display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;';
+
+    // Copy button
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋 复制回答';
+    copyBtn.style.cssText = 'padding:4px 10px;border:1px solid #d0e2f2;background:#fff;color:#6989a8;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;';
+    copyBtn.onclick = function() {
+        var plainText = text.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, '');
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(plainText).then(function() {
+                copyBtn.textContent = '✅ 已复制'; copyBtn.style.color = '#5bba8a';
+                setTimeout(function() { copyBtn.textContent = '📋 复制回答'; copyBtn.style.color = '#6989a8'; }, 2000);
+            });
+        }
+    };
+    toolbar.appendChild(copyBtn);
+
+    // Regenerate button
+    var redoBtn = document.createElement('button');
+    redoBtn.textContent = '🔄 重新生成';
+    redoBtn.style.cssText = 'padding:4px 10px;border:1px solid #d0e2f2;background:#fff;color:#6989a8;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;';
+    redoBtn.onclick = function() {
+        var q = sessionStorage.getItem('lastQuestion');
+        if (q) { chatInput.value = q; sendMessage(); }
+    };
+    toolbar.appendChild(redoBtn);
+
+    content.appendChild(toolbar);
+}
+
 function finalizeStreamMessage(msgDiv, text, toolCalls) {
     markAllProgressDone(msgDiv.querySelector('.progress-tracker'));
     updateStreamText(msgDiv, text);
     appendContextActions(msgDiv.querySelector('.msg-content'), text, toolCalls);
+    addAnswerToolbar(msgDiv, text);
 
     // Check for email results
     if (toolCalls) {
