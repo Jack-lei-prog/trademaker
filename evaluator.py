@@ -167,3 +167,118 @@ def evaluate_response(question, answer):
     Always returns a result (never None).
     """
     return heuristic_evaluate(question, answer)
+
+
+# ============================================================
+# Kimi 深度评价 (Moonshot AI)
+# ============================================================
+
+KIMI_API_KEY = os.getenv("KIMI_API_KEY", "")
+KIMI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
+KIMI_MODEL = os.getenv("KIMI_MODEL", "kimi-k2.7-code")
+
+
+def kimi_available():
+    """检查 Kimi API 是否已配置"""
+    return bool(KIMI_API_KEY and "your-kimi-key" not in KIMI_API_KEY)
+
+
+def kimi_evaluate(question: str, answer: str) -> dict:
+    """
+    调用 Kimi (Moonshot AI) 对 TradeMaster 的回答做深度评价。
+    返回与 heuristic_evaluate 相同格式的 dict。
+    """
+    if not kimi_available():
+        return {"error": "Kimi API Key 未配置，请在 .env 中设置 KIMI_API_KEY", "scores": {}}
+
+    system = """你是一个专业的外贸 AI 助手评价专家。直接输出 JSON，不要推理过程。
+
+评分维度（每个 1-10 分）：
+1. relevance(相关性) 2. accuracy(准确性) 3. completeness(完整性)
+4. practicality(实用性) 5. language(语言质量) 6. overall(综合)
+
+同时给出 2-3 条优点(strengths)、2-3 条缺点(weaknesses)、1 条改进建议(suggestion)。
+综合评分 < 8 时 need_improve 为 true。
+
+直接输出 JSON：{"scores":{"relevance":8,"accuracy":7,"completeness":6,"practicality":8,"language":9,"overall":7.5},"strengths":["优1","优2"],"weaknesses":["缺1","缺2"],"suggestion":"建议","need_improve":true}"""
+
+    user = f"问题：{question[:1000]}\n\n回答：{answer[:2000]}\n\n输出JSON："
+
+    try:
+        resp = requests.post(
+            KIMI_API_URL,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {KIMI_API_KEY}",
+            },
+            json={
+                "model": KIMI_MODEL,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "temperature": 1.0,  # Kimi 推理模型需要 temperature=1
+                "max_tokens": 2000,
+            },
+            timeout=30,
+        )
+
+        if resp.status_code != 200:
+            return {"error": f"Kimi API {resp.status_code}: {resp.text[:200]}", "scores": {}}
+
+        data = resp.json()
+        msg = data["choices"][0]["message"]
+        content = msg.get("content", "") or msg.get("reasoning_content", "")
+
+        # 如果 content 为空（纯推理模型），尝试从 reasoning 尾部提取 JSON
+        if not content.strip():
+            reasoning = msg.get("reasoning_content", "")
+            # 从尾部找 JSON
+            import re as _re
+            m = _re.search(r'\{[^{}]*"scores"[^{}]*\}', reasoning)
+            if m:
+                content = m.group(0)
+
+        # 清理 markdown
+        content = content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            lines = [l for l in lines if not l.strip().startswith("```")]
+            content = "\n".join(lines)
+
+        result = json.loads(content)
+
+        # 确保所有字段存在
+        if "scores" not in result:
+            result["scores"] = {}
+        if "strengths" not in result:
+            result["strengths"] = []
+        if "weaknesses" not in result:
+            result["weaknesses"] = []
+        if "suggestion" not in result:
+            result["suggestion"] = ""
+        if "need_improve" not in result:
+            overall = float(result.get("scores", {}).get("overall", 5))
+            result["need_improve"] = overall < 8.0
+
+        return result
+
+    except requests.exceptions.Timeout:
+        return {"error": "Kimi API 请求超时，请稍后重试", "scores": {}}
+    except json.JSONDecodeError:
+        return {"error": f"Kimi 返回格式异常: {content[:200]}", "scores": {}}
+    except Exception as e:
+        return {"error": f"Kimi 评价出错: {str(e)}", "scores": {}}
+
+
+def dual_evaluate(question: str, answer: str) -> dict:
+    """
+    双评价：启发式（快速） + Kimi（深度）
+    返回包含两者的 dict
+    """
+    heuristic = heuristic_evaluate(question, answer)
+    kimi = kimi_evaluate(question, answer) if kimi_available() else {"error": "Kimi 未配置"}
+    return {
+        "heuristic": heuristic,
+        "kimi": kimi,
+    }

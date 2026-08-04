@@ -21,6 +21,7 @@ from data_sources import (
     call_llm,
     _expand_trade_terms,
 )
+from cache import cached
 
 
 # ========== 工具1：买家搜索 ==========
@@ -77,6 +78,17 @@ def search_buyers(keyword: str) -> str:
                 except Exception:
                     pass
 
+        # 如果 API 没返回结果，用 LLM 补充
+        if not raw_results:
+            llm_companies = search_companies_llm(keyword, limit=10)
+            for c in llm_companies:
+                name = c.get("company_name", "").strip().lower()
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    raw_results.append(("AI Trade DB", c))
+            if not sources_used:
+                sources_used.append("AI Trade Database")
+
     buyers = []
     for source, r in raw_results[:15]:
         buyers.append({
@@ -90,13 +102,35 @@ def search_buyers(keyword: str) -> str:
         })
 
     # Agent 需要基于此结果 + 自身知识推荐买家
+    base_note = (
+        f"基于数据库搜索结果，按以下优先级列出买家：\n"
+        f"1) 先列出 structured_results 中匹配到的公司，补全已有字段\n"
+        f"2) 再补充推荐与 '{keyword}' 相关的全球买家/进口商/分销商\n"
+        f"3) 知名大企业（IKEA/Walmart/Amazon/Home Depot等）→ 给供应商注册URL，不给推测邮箱\n"
+        f"4) 中小公司 → 可推测邮箱但必须标注 ⚠️未验证，建议用户用 Hunter.io 等工具验证\n"
+        f"5) 补充 LinkedIn搜索建议 + B2B平台RFQ建议 + 行业展会建议（具体到展会名称）\n"
+        f"每家格式：序号. 公司名 + 国旗 + 网站 + 联系邮箱（标注验证状态） + 采购类型 + 推荐理由\n"
+        f"⚠️ 序号必须从1连续递增到N，**每条之间用单个换行（不是空行）分隔**，禁止中间重置编号。\n"
+        f"格式示例：\n"
+        f"1. 公司A 🇺🇸 — site.com | email | 进口商 | 推荐理由\n"
+        f"2. 公司B 🇩🇪 — site.de | email | 分销商 | 推荐理由\n"
+        f"3. 公司C 🇯🇵 — site.jp | email | 批发商 | 推荐理由\n"
+        f"（注意每行之间没有空行！这样前端才会正确显示连续编号）"
+    )
+    alibaba_note = (
+        "用户提到了1688或阿里巴巴国际站。重点推荐在 Alibaba.com 上活跃采购的真实买家/进口商。"
+        "建议用户同时在 Alibaba.com → RFQ Market 搜索 '{keyword}' 查看最新的真实采购需求。"
+        "格式同上，优先推荐有Alibaba交易记录的买家。"
+    )
+
     return json.dumps({
         "success": True,
         "keyword": keyword,
         "structured_count": len(buyers),
         "structured_results": buyers,
         "search_terms_used": trade_terms[:5],
-        "note": f"以上为数据库匹配结果。请根据你的训练知识，额外推荐 5-10 家与 '{keyword}' 相关的全球知名买家/进口商/分销商。每家必须包含：公司名、国家、网站、联系邮箱（如果知道真实邮箱则提供，否则基于网站给出常见采购邮箱如 purchasing@/info@/sales@域名）、采购类型、为什么是潜在客户。优先推荐真正的买家 (importer/distributor/wholesaler)，而非纯制造商。"
+        "note": base_note,
+        "alibaba_note": alibaba_note,
     }, ensure_ascii=False, indent=2)
 
 
@@ -163,7 +197,7 @@ def draft_email(company_info: str, product_highlight: str) -> str:
         f"Product highlight: {product_highlight}\n\n"
         "Write a compelling development email to this company."
     )
-    result = call_llm(system, user, max_tokens=600)
+    result = call_llm(system, user, max_tokens=2000)
     if result:
         return result.strip()
 
@@ -262,7 +296,7 @@ def generate_product_desc(name: str, tone: str = "活泼", target_audience: str 
         f"产品：{name}，风格：{tone}，受众：{target_audience}\n"
         "生成JSON：title（产品标题）、bullet_points（3条卖点）、description（一段描述）"
     )
-    result = call_llm(system, user, max_tokens=600)
+    result = call_llm(system, user, max_tokens=2000)
     if result:
         return result.strip()
 
@@ -291,7 +325,7 @@ def draft_customer_reply(message: str, order_status: str = "已发货") -> str:
     user = (
         f"客户消息：{message}\n订单状态：{order_status}\n请起草一个中文客服回复。"
     )
-    result = call_llm(system, user, max_tokens=400)
+    result = call_llm(system, user, max_tokens=2000)
     if result:
         return result.strip()
 
@@ -332,7 +366,7 @@ def analyze_daily_sales(orders_summary: str = "") -> str:
     top_products = []
 
     # 正则解析
-    pattern = r'([\u4e00-\u9fa5a-zA-Z]+?)(\d+)个'
+    pattern = r'([\u4e00-\u9fa5a-zA-Z0-9]+?)\s*(\d+)个'
     matches = re.findall(pattern, orders_summary)
     for product, qty in matches:
         qty = int(qty)
@@ -351,7 +385,7 @@ def analyze_daily_sales(orders_summary: str = "") -> str:
     if top_products:
         system = "You are a sales data analyst. Write one concise sentence in Chinese with insights and stock advice. Return ONLY that sentence."
         user = f"Top products: {json.dumps(top_products, ensure_ascii=False)}. Give a brief analysis."
-        remarks = call_llm(system, user, max_tokens=200)
+        remarks = call_llm(system, user, max_tokens=1000)
         if not remarks:
             top_item = top_products[0]
             remarks = f"今日销售平稳，{top_item['name']}销量突出（{top_item['sales']}件），建议关注库存。"
@@ -381,7 +415,7 @@ def write_marketing_slogan(promotion_topic: str) -> str:
         "Return ONLY a JSON array of 3 strings, no extra text."
     )
     user = f"促销主题：{promotion_topic}\n生成3条不同风格的中文广告语，返回JSON数组。"
-    result = call_llm(system, user, max_tokens=500)
+    result = call_llm(system, user, max_tokens=2000)
     if result:
         return result.strip()
 
@@ -406,6 +440,30 @@ def send_email(to_email: str, subject: str, body: str, to_name: str = "", from_e
             "error": f"收件人邮箱地址无效: {to_email}"
         }, ensure_ascii=False)
 
+    # 知名企业供应商门户域名检测
+    enterprise_domains = {
+        "ikea.com": "IKEA 通过供应商门户采购，不接收开发信 → https://supplier.ikea.com",
+        "walmart.com": "Walmart 通过 Retail Link 管理供应商 → https://walmart.com/suppliers",
+        "amazon.com": "Amazon 通过 Seller Central 入驻 → https://sell.amazon.com",
+        "homedepot.com": "Home Depot 通过 Supplier Center 管理 → https://homedepot.com/suppliers",
+        "target.com": "Target 通过 Partners Online 管理 → https://corporate.target.com/suppliers",
+        "costco.com": "Costco 通过 Supplier Diversity 注册 → https://costco.com/supplier-diversity.html",
+        "bestbuy.com": "Best Buy 通过 Partner Portal 管理 → https://bestbuy.com/suppliers",
+        "tesco.com": "Tesco 通过 Supplier Network 管理 → https://tesco.com/suppliers",
+        "carrefour.com": "Carrefour 通过供应商平台采购 → https://carrefour.com/suppliers",
+    }
+    domain = to_email.split("@")[1].lower()
+    if domain in enterprise_domains:
+        return json.dumps({
+            "success": False,
+            "error": f"发送已阻止。{enterprise_domains[domain]}",
+            "hint": "大型企业通过供应商门户采购，开发信不会有效果。请通过上述链接注册成为其供应商。"
+        }, ensure_ascii=False)
+
+    # 推测邮箱检测
+    guessed_patterns = ["purchasing@", "info@", "sales@", "inquiry@", "procurement@",
+                       "import@", "export@", "contact@", "admin@", "office@"]
+
     # 清理正文
     clean_body = body.strip()
 
@@ -419,46 +477,30 @@ def send_email(to_email: str, subject: str, body: str, to_name: str = "", from_e
         elif len(lines) > 1:
             clean_body = "\n".join(lines[1:]).strip()
 
-    # 清理正文中的特殊 unicode 字符，确保邮件客户端兼容
-    import unicodedata
-    safe_body = ""
-    for ch in clean_body:
-        if ord(ch) < 128 or ch in '\n\r':
-            safe_body += ch
-        elif unicodedata.category(ch).startswith('P') or ch == ' ':
-            safe_body += ch  # keep punctuation
-        else:
-            safe_body += ch  # keep CJK etc for now
+    # 检查是否为推测邮箱
+    is_guessed = any(to_email.lower().startswith(p) for p in guessed_patterns)
+    if is_guessed:
+        clean_body = (
+            f"[⚠️ 此邮箱为基于域名推测，未经验证，建议先用 Hunter.io 等工具验证]\n\n"
+            f"{clean_body}"
+        )
 
-    # 构建 mailto URL (safe encoding)
-    import urllib.parse
-
-    # 短版 mailto：只用收件人 + 主题（body 太长会破坏 mailto 链接）
-    short_mailto = f"mailto:{urllib.parse.quote(to_email)}"
-    if email_subject:
-        short_mailto += f"?subject={urllib.parse.quote(email_subject, safe='')}"
-
-    # 完整 mailto（尝试包含正文，但截断到安全长度）
-    body_short = safe_body[:800]
-    full_mailto = short_mailto
-    if body_short:
-        full_mailto += f"{'&' if '?' in full_mailto else '?'}body={urllib.parse.quote(body_short, safe='')}"
-
+    # 邮件内容直接展示在页面内联编辑器中
     return json.dumps({
         "success": True,
         "to_email": to_email,
         "from_email": from_email,
         "to_name": to_name,
         "subject": email_subject,
-        "body": safe_body,
-        "mailto_url": full_mailto,
-        "action": "open_mailto",
-        "message": f"邮件已准备就绪！收件人：{to_email}\n主题：{email_subject}",
-        "hint": "点击按钮打开邮箱客户端，或复制正文手动粘贴到邮件中"
+        "body": clean_body,
+        "action": "inline_composer",
+        "message": "邮件已生成" if not is_guessed else "邮件已生成（⚠️ 推测邮箱，建议验证后发送）",
+        "email_verified": not is_guessed,
+        "hint": "在页面编辑器中直接编辑后，复制粘贴到你的邮箱客户端发送" if not is_guessed
+                else "⚠️ 推测邮箱未验证，强烈建议用 Hunter.io / FindThatLead / Snov.io 验证后再发送，避免退信"
     }, ensure_ascii=False)
 
 
-# ========== 工具10：邮件状态检查 ==========
 def check_email_status(user_email: str = "") -> str:
     """
     检查某用户的邮件跟进状态：哪些邮件需要跟进
@@ -508,6 +550,66 @@ def check_email_status(user_email: str = "") -> str:
     }, ensure_ascii=False, indent=2)
 
 
+# ========== 工具11：询盘处理 ==========
+def process_inquiry(inquiry_text: str, user_email: str = "",
+                    user_product: str = "", user_company: str = "",
+                    user_phone: str = "") -> str:
+    """完整询盘处理：提取客户→分类意图→背景调研→生成回复→跟进队列"""
+    from inquiry_engine import process_inquiry_full
+
+    result = process_inquiry_full(
+        inquiry_text=inquiry_text, user_email=user_email,
+        user_product=user_product, user_company=user_company, user_phone=user_phone)
+
+    intent_label = {"genuine_purchase": "真实采购", "price_shopping": "比价询价",
+                    "market_research": "市场调研", "spam": "垃圾询盘"}
+
+    summary = (
+        f"Company: {result['client_info'].get('company_name', 'N/A')}\n"
+        f"Email: {result['client_info'].get('email', 'N/A')}\n"
+        f"Country: {result['client_info'].get('country', 'N/A')}\n"
+        f"Intent: {intent_label.get(result['intent'].get('type', ''), 'Unknown')} "
+        f"(confidence: {float(result['intent'].get('confidence', 0)):.0%})\n"
+        f"Follow-up: {result.get('followup_due_days', 3)} days")
+
+    return json.dumps({
+        "success": True,
+        "inquiry_analysis": {
+            "client_info": result["client_info"],
+            "intent": result["intent"],
+            "background": result["background"],
+            "summary": summary,
+        },
+        "reply_email": result["reply"],
+        "followup_id": result.get("followup_id", ""),
+        "followup_due_days": result.get("followup_due_days", 3),
+    }, ensure_ascii=False, indent=2)
+
+
+# ========== 工具12：知识库检索（RAG）==========
+def search_trade_knowledge(query: str) -> str:
+    """
+    RAG检索 — 从展会/认证/外贸术语知识库中检索相关内容
+    """
+    from knowledge.retriever import search_knowledge, lookup_term
+    # 如果是简短术语，直接查术语库
+    if len(query.strip().split()) <= 3:
+        term_result = lookup_term(query)
+        if "未找到" not in term_result:
+            return json.dumps({"success": True, "type": "术语解释", "result": term_result},
+                            ensure_ascii=False, indent=2)
+
+    result = search_knowledge(query, top_k=5)
+    return json.dumps({
+        "success": True,
+        "query": query,
+        "type": "知识库RAG检索",
+        "tradeshows": result["tradeshows"][:3],
+        "certifications": result["certifications"][:3],
+        "note": "基于TF-IDF语义匹配的知识库检索结果。用于补充专业知识、展会信息和认证要求。"
+    }, ensure_ascii=False, indent=2)
+
+
 TOOL_FUNCTIONS = {
     "search_buyers": search_buyers,
     "analyze_company": analyze_company,
@@ -519,6 +621,8 @@ TOOL_FUNCTIONS = {
     "analyze_daily_sales": analyze_daily_sales,
     "write_marketing_slogan": write_marketing_slogan,
     "check_email_status": check_email_status,
+    "process_inquiry": process_inquiry,
+    "search_trade_knowledge": search_trade_knowledge,
 }
 
 TOOL_DESCRIPTIONS = [
@@ -526,11 +630,11 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "search_buyers",
-            "description": "通过 OpenCorporates 全球公司注册数据库搜索潜在买家，返回公司名、注册地、状态、地址等",
+            "description": "通过 OpenCorporates 全球公司注册数据库搜索潜在买家",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "keyword": {"type": "string", "description": "搜索关键词，如产品名、行业名（electronics, textiles, machinery）"}
+                    "keyword": {"type": "string", "description": "搜索关键词"}
                 },
                 "required": ["keyword"]
             }
@@ -540,11 +644,11 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "analyze_company",
-            "description": "通过 OpenCorporates 获取公司详细注册信息，包含高管、行业代码、注册日期等",
+            "description": "通过 OpenCorporates 获取公司详细注册信息",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "domain": {"type": "string", "description": "公司域名或名称（如 techglobal.com, apple.com）"}
+                    "domain": {"type": "string", "description": "公司域名或名称"}
                 },
                 "required": ["domain"]
             }
@@ -559,7 +663,7 @@ TOOL_DESCRIPTIONS = [
                 "type": "object",
                 "properties": {
                     "company_info": {"type": "string", "description": "客户公司信息"},
-                    "product_highlight": {"type": "string", "description": "产品亮点/卖点"}
+                    "product_highlight": {"type": "string", "description": "产品亮点"}
                 },
                 "required": ["company_info", "product_highlight"]
             }
@@ -569,11 +673,11 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "query_exchange_rate",
-            "description": "查询实时汇率（支持160+货币），数据来源 open.er-api.com",
+            "description": "查询实时汇率（支持160+货币）",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "currency": {"type": "string", "description": "货币代码（USD, EUR, GBP, JPY, AUD, CAD 等）"}
+                    "currency": {"type": "string", "description": "货币代码"}
                 },
                 "required": ["currency"]
             }
@@ -588,8 +692,8 @@ TOOL_DESCRIPTIONS = [
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "商品名称"},
-                    "tone": {"type": "string", "description": "文案风格：活泼、专业、简约"},
-                    "target_audience": {"type": "string", "description": "目标受众：年轻人、上班族、学生等"}
+                    "tone": {"type": "string", "description": "文案风格"},
+                    "target_audience": {"type": "string", "description": "目标受众"}
                 },
                 "required": ["name"]
             }
@@ -603,8 +707,8 @@ TOOL_DESCRIPTIONS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "message": {"type": "string", "description": "客户发来的消息"},
-                    "order_status": {"type": "string", "description": "订单状态：已发货、待发货、已送达"}
+                    "message": {"type": "string", "description": "客户消息"},
+                    "order_status": {"type": "string", "description": "订单状态"}
                 },
                 "required": ["message"]
             }
@@ -614,11 +718,11 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "analyze_daily_sales",
-            "description": "分析当日销售数据并生成简报，包含总收入、热销产品、AI 分析建议",
+            "description": "分析当日销售数据并生成简报",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "orders_summary": {"type": "string", "description": "订单摘要（如：保温杯20个，手机支架35个，数据线50个，总收入2800元）"}
+                    "orders_summary": {"type": "string", "description": "订单摘要"}
                 },
                 "required": []
             }
@@ -628,11 +732,11 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "write_marketing_slogan",
-            "description": "利用 AI 根据促销主题生成3条创意广告语",
+            "description": "利用 AI 生成3条创意广告语",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "promotion_topic": {"type": "string", "description": "促销主题（如：夏日防晒衣、双十一大促）"}
+                    "promotion_topic": {"type": "string", "description": "促销主题"}
                 },
                 "required": ["promotion_topic"]
             }
@@ -642,15 +746,15 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "send_email",
-            "description": "生成mailto链接打开邮箱客户端发送邮件。发送后自动记录到跟踪系统。",
+            "description": "生成mailto链接打开邮箱客户端发送邮件",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "to_email": {"type": "string", "description": "收件人邮箱地址"},
+                    "to_email": {"type": "string", "description": "收件人邮箱"},
                     "subject": {"type": "string", "description": "邮件主题"},
                     "body": {"type": "string", "description": "邮件正文"},
-                    "to_name": {"type": "string", "description": "收件人姓名（可选）"},
-                    "from_email": {"type": "string", "description": "发件人邮箱地址（你自己的邮箱）"}
+                    "to_name": {"type": "string", "description": "收件人姓名"},
+                    "from_email": {"type": "string", "description": "发件人邮箱"}
                 },
                 "required": ["to_email", "subject", "body"]
             }
@@ -660,7 +764,7 @@ TOOL_DESCRIPTIONS = [
         "type": "function",
         "function": {
             "name": "check_email_status",
-            "description": "检查已发送邮件的跟进状态：哪些邮件超过1天未回复需要跟进，哪些已回复",
+            "description": "检查已发送邮件的跟进状态",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -669,23 +773,47 @@ TOOL_DESCRIPTIONS = [
                 "required": ["user_email"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "process_inquiry",
+            "description": "分析客户询盘：提取公司信息、分类意图、调研背景、生成回复、加入跟进队列",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "inquiry_text": {"type": "string", "description": "客户询盘的完整文本"},
+                    "user_email": {"type": "string", "description": "用户邮箱（用于跟进）"},
+                    "user_product": {"type": "string", "description": "主营产品（可选）"},
+                    "user_company": {"type": "string", "description": "公司名称（可选）"},
+                    "user_phone": {"type": "string", "description": "电话（可选）"}
+                },
+                "required": ["inquiry_text"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_trade_knowledge",
+            "description": "RAG知识库检索：搜索展会信息、出口认证要求、外贸术语解释（如FOB/CIF/MOQ/CE/FCC等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "检索查询（产品关键词或外贸术语）"}
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("工具函数测试（真实数据源）")
+    print("工具函数测试")
     print("=" * 60)
-
-    print("\n1. 汇率查询 (USD):")
+    print("1. 汇率查询 (USD):")
     print(query_exchange_rate("USD")[:400])
-
-    print("\n2. 汇率查询 (EUR):")
-    print(query_exchange_rate("EUR")[:400])
-
-    print("\n3. 买家搜索 (electronics):")
-    print(search_buyers("electronics")[:500])
-
-    print("\n4. 开发信撰写 (AI):")
-    print(draft_email("TechGlobal Imports Ltd.", "Bluetooth earphones with ANC")[:500])
+    print("2. 开发信撰写:")
+    print(draft_email("TechGlobal Imports Ltd.", "Bluetooth earphones with ANC")[:400])

@@ -3,187 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>外贸通 - 智能外贸业务助理</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#e8f4fd;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:0}
-.chat-container{width:100%;max-width:100%;height:100vh;background:#fff;border-radius:0;box-shadow:none;display:flex;flex-direction:column;overflow:hidden}
-.chat-header{background:#fff;color:#1e293b;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dceefb;flex-shrink:0}
-.chat-header h1{font-size:15px;font-weight:600}
-.chat-messages{flex:1;overflow-y:auto;padding:10px 16px;background:#f3f8fc}
-.chat-input-container{padding:8px 16px;background:#fff;border-top:1px solid #dceefb;flex-shrink:0}
-.chat-input-wrapper{display:flex;gap:8px;align-items:flex-end}
-.chat-input{flex:1;border:1.5px solid #d0e2f2;border-radius:10px;padding:10px 14px;font-size:14.5px;resize:none;max-height:120px;min-height:42px;outline:none;font-family:inherit;background:#f8fbfd}
-.chat-input:focus{border-color:#6db3e6;background:#fff}
-.btn-send{background:#5ba0d9;border:none;color:#fff;width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:16px;flex-shrink:0}
-.btn-send:hover{background:#4a8bba}
-.btn-send:disabled{opacity:0.45;cursor:not-allowed}
-
-.message{margin-bottom:10px;display:flex;gap:6px;animation:fadeIn .25s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.message.user{flex-direction:row-reverse}
-.msg-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#dceefb}
-.msg-content{max-width:72%;padding:10px 14px;border-radius:12px;line-height:1.6;font-size:14.5px}
-.message.assistant .msg-content{background:#fff;color:#334155;box-shadow:0 1px 4px rgba(148,186,227,0.08)}
-.message.user .msg-content{background:#dceefb;color:#1e293b}
-.msg-content p{margin:3px 0}
-.msg-content h3{font-size:15px;font-weight:600;margin:4px 0;color:#1e293b}
-.msg-content table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}
-.msg-content td{border-bottom:1px solid #e8f2f9;padding:6px 10px;color:#334155}
-.msg-content strong{font-weight:600}
-.msg-content a{color:#3b8ed4;text-decoration:none}
-.msg-content a:hover{text-decoration:underline}
-.msg-content ul,.msg-content ol{margin:4px 0;padding-left:20px}
-.msg-content li{margin:2px 0}
-.msg-content blockquote{border-left:3px solid #c4ddf2;padding-left:12px;margin:6px 0;color:#7d98b0}
-.msg-content hr{border:none;border-top:1px solid #e0eef8;margin:10px 0}
-.msg-content code{background:#edf4fa;padding:1px 5px;border-radius:4px;font-size:13px}
-.msg-content pre{background:#f0f5fa;padding:12px;border-radius:8px;overflow-x:auto;margin:6px 0}
-.msg-content pre code{background:transparent;padding:0}
-
-.typing-indicator{display:inline-block;padding:10px 14px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(148,186,227,0.08)}
-.typing-indicator span{display:inline-block;width:6px;height:6px;background:#b6d2ec;border-radius:50%;margin:0 2px;animation:typing 1.4s infinite}
-.typing-indicator span:nth-child(2){animation-delay:.2s}
-.typing-indicator span:nth-child(3){animation-delay:.4s}
-@keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-6px);opacity:1}}
-
-/* Auth */
-.auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#e8f4fd;z-index:1000;display:flex;justify-content:center;align-items:center}
-.auth-panel{background:#fff;border-radius:16px;padding:32px;width:420px;max-width:94vw;box-shadow:0 4px 24px rgba(148,186,227,0.2);text-align:center}
-.auth-panel h2{font-size:22px;color:#1e293b;margin-bottom:4px}
-.auth-subtitle{font-size:13px;color:#86a8c8;margin-bottom:20px}
-.auth-panel label{display:block;text-align:left;font-size:13px;color:#6989a8;margin-bottom:4px;margin-top:12px;font-weight:500}
-.auth-panel input{width:100%;padding:10px 14px;font-size:14px;border:1.5px solid #d0e2f2;border-radius:10px;outline:none;font-family:inherit;background:#f8fbfd}
-.auth-panel input:focus{border-color:#5ba0d9;background:#fff}
-.auth-btn{width:100%;padding:11px;margin-top:20px;background:#5ba0d9;border:none;color:#fff;font-size:15px;font-weight:500;border-radius:10px;cursor:pointer;font-family:inherit}
-.auth-btn:hover{background:#4a8bba}
-.auth-switch{margin-top:14px;font-size:13px;color:#86a8c8}
-.auth-switch a{color:#5ba0d9;cursor:pointer;text-decoration:none}
-.auth-switch a:hover{text-decoration:underline}
-.auth-error{color:#e87070;font-size:13px;margin-top:8px;display:none}
-
-/* Identity cards */
-.identity-cards{display:flex;gap:12px;margin-top:14px}
-.identity-card{flex:1;padding:14px 10px;border:2px solid #d0e2f2;border-radius:12px;cursor:pointer;text-align:center;transition:all .2s;background:#fff}
-.identity-card:hover{border-color:#90c0e8;background:#f8fbfd}
-.identity-card.selected{border-color:#5ba0d9;background:#eaf3fb}
-.identity-card .id-icon{font-size:28px;display:block;margin-bottom:4px}
-.identity-card .id-label{font-size:14px;font-weight:600;color:#334155}
-.identity-card .id-desc{font-size:11px;color:#86a8c8;margin-top:2px}
-
-/* Header */
-.header-actions{display:flex;align-items:center;gap:8px}
-.user-bar{display:none;align-items:center;gap:6px;padding:4px 10px;background:#eaf3fb;border-radius:8px;font-size:12px;color:#4a8bba}
-.ubadge{background:#5ba0d9;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;font-weight:500}
-.btn-sm{background:none;border:1px solid #d0e2f2;color:#7ba5c8;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit}
-.btn-sm:hover{border-color:#90c0e8;color:#4a8bba}
-
-/* Email panel */
-.email-panel{width:260px;overflow:hidden;background:#fff;border-right:1px solid #dceefb;display:flex;flex-direction:column;transition:width .25s;flex-shrink:0}
-.email-panel.closed{width:0;border-right:none}
-.email-panel h3{padding:12px 14px;font-size:14px;font-weight:600;color:#334155;border-bottom:1px solid #dceefb;flex-shrink:0;margin:0}
-.email-filter-tabs{display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid #f3f8fc;flex-shrink:0}
-.email-filter-tab{padding:4px 10px;border-radius:12px;border:none;background:transparent;color:#86a8c8;font-size:11px;cursor:pointer;font-family:inherit}
-.email-filter-tab.active{background:#5ba0d9;color:#fff}
-.email-list{flex:1;overflow-y:auto;padding:6px 0}
-.email-item{padding:10px 14px;border-bottom:1px solid #f8f8f8;cursor:pointer}
-.email-item:hover{background:#f8fbfd}
-.email-item .ei-to{font-size:12px;font-weight:600;color:#334155}
-.email-item .ei-subject{font-size:11px;color:#6989a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.email-item .ei-date{font-size:10px;color:#a3bfd8;float:right}
-.email-item .ei-status{display:inline-block;font-size:9px;padding:1px 6px;border-radius:6px;margin-right:4px}
-.email-item .ei-status.sent{background:#fff3e0;color:#b07020}
-.email-item .ei-status.replied{background:#e8f5e9;color:#2e7d32}
-.email-item .ei-status.bounced{background:#ffebee;color:#c62828}
-.email-item .ei-detail{display:none;margin-top:6px;padding-top:6px;border-top:1px solid #f3f8fc;font-size:11px;color:#666;line-height:1.5;max-height:120px;overflow-y:auto}
-.email-item.expanded .ei-detail{display:block}
-.ei-actions{display:flex;gap:4px;margin-top:6px}
-.ei-btn{padding:2px 8px;border-radius:4px;border:1px solid #d0e2f2;background:#fff;color:#6989a8;font-size:10px;cursor:pointer;font-family:inherit}
-.ei-btn:hover{border-color:#90c0e8;color:#4a8bba}
-.btn-toggle-email{background:#eaf3fb;border:1px solid #d0e2f2;color:#4a8bba;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit}
-.btn-toggle-email .badge{background:#e87070;color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;display:none;margin-left:4px}
-.btn-toggle-email .badge.show{display:inline-block}
-
-/* Progress tracker */
-.progress-tracker{margin:0 0 10px 0;background:#fff;border:1px solid #dceefb;border-radius:10px;overflow:hidden;display:none}
-.progress-step{display:flex;align-items:center;gap:10px;padding:8px 14px;font-size:13px;color:#86a8c8;border-bottom:1px solid #f3f8fc}
-.progress-step:last-child{border-bottom:none}
-.progress-step .ps-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;font-weight:600}
-.progress-step.working .ps-icon{border:2px solid #f0a040;color:#f0a040}
-.progress-step.working{background:#fffaf3;color:#b07020;font-weight:500}
-.progress-step.done .ps-icon{border:2px solid #5bba8a;background:#f2faf6;color:#5bba8a}
-.progress-step.done{color:#5bba8a}
-.progress-step.error .ps-icon{border:2px solid #e87070;background:#fef5f5;color:#e87070}
-.ps-label{flex:1;font-size:13px}
-.ps-status{font-size:11px;flex-shrink:0}
-.ps-summary{font-size:11px;color:#86a8c8;margin-top:1px}
-.progress-step.done .ps-summary{color:#5bba8a}
-.mini-spinner{display:inline-block;width:12px;height:12px;border:2px solid #f0a040;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.progress-all-done{text-align:center;padding:5px;font-size:12px;color:#5bba8a;background:#f0fdf4;border-top:1px solid #d4f0e0}
-
-/* Context actions */
-.context-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid #e8f2f9}
-.context-action-btn{background:#fff;border:1px solid #d0e2f2;color:#4a8bba;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12.5px;font-family:inherit}
-.context-action-btn:hover{background:#f0f7fc;border-color:#90c0e8;color:#3b7eaa}
-
-/* Email actions */
-.email-actions{margin-top:14px;padding:12px;background:#f0f7fc;border-radius:10px;border:1px solid #c4ddf2}
-.email-actions .ea-title{font-size:12px;color:#6989a8;margin-bottom:8px;font-weight:500}
-.email-actions .ea-info{font-size:12px;color:#86a8c8;margin-bottom:6px;line-height:1.5}
-.email-actions .ea-row{display:flex;gap:8px;flex-wrap:wrap}
-.email-actions .ea-copy{background:#5ba0d9;border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit}
-.email-actions .ea-copy:hover{background:#4a8bba}
-.email-actions .ea-mail{background:#fff;border:1px solid #d0e2f2;color:#4a8bba;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit}
-.email-actions .ea-mail:hover{background:#f0f7fc}
-
-/* === GAN Evaluation Card === */
-.eval-card{margin:10px 0;border-radius:10px;border:1px solid #dceefb;background:#fff;overflow:hidden;animation:fadeIn .3s}
-.eval-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f8fbfd;border-bottom:1px solid #f3f8fc}
-.eval-header .eval-title{font-size:13px;font-weight:600;color:#334155}
-.eval-header .eval-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
-.eval-badge.good{background:#e8f5e9;color:#2e7d32}
-.eval-badge.ok{background:#fff3e0;color:#b07020}
-.eval-badge.poor{background:#ffebee;color:#c62828}
-.eval-body{padding:12px 14px}
-.eval-scores{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-.eval-score-row{display:flex;align-items:center;gap:8px;font-size:12px}
-.eval-score-label{width:80px;color:#6989a8;text-align:right;flex-shrink:0}
-.eval-score-bar{flex:1;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden}
-.eval-score-fill{height:100%;border-radius:3px;transition:width .5s}
-.eval-score-fill.hi{background:#5bba8a}
-.eval-score-fill.mid{background:#f0a040}
-.eval-score-fill.low{background:#e87070}
-.eval-score-val{width:28px;font-weight:600;color:#334155;text-align:center;flex-shrink:0}
-.eval-lists{display:flex;gap:10px;margin-top:10px;font-size:12px}
-.eval-strengths{flex:1}
-.eval-strengths h4{color:#2e7d32;font-size:12px;margin-bottom:4px}
-.eval-strengths li{color:#5bba8a;margin-left:16px;margin-bottom:2px}
-.eval-weaknesses{flex:1}
-.eval-weaknesses h4{color:#c62828;font-size:12px;margin-bottom:4px}
-.eval-weaknesses li{color:#e87070;margin-left:16px;margin-bottom:2px}
-.eval-suggestion{margin-top:10px;padding:8px 12px;background:#f0f7fc;border-radius:8px;font-size:12px;color:#4a8bba;line-height:1.5}
-.eval-suggestion strong{color:#334155}
-.eval-error{text-align:center;color:#a3bfd8;font-size:12px;padding:8px}
-
-/* GAN improved answer section */
-.improved-divider{margin:12px 0 6px 0;display:flex;align-items:center;gap:8px}
-.improved-divider::before,.improved-divider::after{content:'';flex:1;border-top:1px dashed #c4ddf2}
-.improved-divider span{font-size:11px;color:#5bba8a;font-weight:500}
-.eval-actions{display:flex;gap:6px;margin-top:10px}
-.eval-keep-btn{padding:4px 12px;border:1px solid #d0e2f2;background:#fff;color:#6989a8;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
-.eval-keep-btn:hover{background:#f0f7fc;color:#4a8bba}
-
-.welcome-message{text-align:center;padding:12px 20px;color:#86a8c8}
-.welcome-message h2{color:#3b6e94;margin-bottom:2px;font-size:18px;font-weight:600}
-.quick-actions{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px}
-.quick-btn{background:#fff;border:1px solid #d0e2f2;padding:7px 14px;border-radius:18px;cursor:pointer;font-size:13px;color:#6989a8;font-family:inherit}
-.quick-btn:hover{border-color:#90c0e8;color:#4a8bba;background:#f8fbfd}
-
-.chat-messages::-webkit-scrollbar{width:5px}
-.chat-messages::-webkit-scrollbar-track{background:transparent}
-.chat-messages::-webkit-scrollbar-thumb{background:#c4ddf2;border-radius:3px}
-@media(max-width:768px){.msg-content{max-width:85%}.email-panel{width:240px}}
-</style>
+<title>外贸通 TradeMaster — AI外贸全流程智能体平台 | 买家搜索 · 开发信 · 展会情报 · 邮件追踪</title>
+<link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 
@@ -194,14 +15,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     <p class="auth-subtitle" id="authSubtitle">登录您的账号</p>
     <div id="loginForm">
       <label>邮箱地址</label>
-      <input type="email" id="loginEmail" placeholder="your@email.com">
+      <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
+      <label>密码</label>
+      <input type="password" id="loginPassword" placeholder="输入密码" autocomplete="current-password">
       <div class="auth-error" id="loginError"></div>
       <button class="auth-btn" id="btnLogin">登 录</button>
       <div class="auth-switch">还没有账号？<a id="lnkRegister">立即注册</a></div>
+      <div style="margin-top:12px;padding:8px;background:var(--accent-light);border-radius:8px;font-size:11px;color:var(--accent2);line-height:1.6">
+        🎬 <b>演示账号</b><br>邮箱：demo@trademaster.com<br>密码：demo2024
+      </div>
     </div>
     <div id="registerForm" style="display:none">
       <label>邮箱地址</label>
-      <input type="email" id="regEmail" placeholder="your@email.com">
+      <input type="email" id="regEmail" placeholder="your@email.com" autocomplete="email">
+      <label>密码</label>
+      <input type="password" id="regPassword" placeholder="设置密码（至少6位）" autocomplete="new-password">
       <label>联系电话</label>
       <input type="tel" id="regPhone" placeholder="13800138000">
       <label>公司名称（选填）</label>
@@ -228,40 +56,108 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   </div>
 </div>
 
-<!-- Chat Container -->
-<div class="chat-container">
-  <!-- Email Panel -->
-  <div class="email-panel" id="emailPanel">
-    <h3>&#x1f4e7; 邮件箱</h3>
-    <div class="email-filter-tabs">
-      <button class="email-filter-tab active" data-filter="all">全部</button>
-      <button class="email-filter-tab" data-filter="sent">已发送</button>
-      <button class="email-filter-tab" data-filter="replied">已回复</button>
-      <button class="email-filter-tab" data-filter="pending">待跟进</button>
+<!-- SMTP Settings Modal -->
+<div class="smtp-overlay" id="smtpOverlay">
+  <div class="smtp-modal">
+    <h3>&#x2699; SMTP 邮件设置</h3>
+    <p class="smtp-subtitle">配置后可直接通过 TradeMaster 发送邮件（QQ邮箱/Gmail）</p>
+    <label>邮箱地址</label>
+    <input type="email" id="smtpEmail" placeholder="你的QQ号@qq.com">
+    <label>授权码 <span class="smtp-hint">（不是QQ密码，需在邮箱设置中获取）</span></label>
+    <input type="password" id="smtpPassword" placeholder="16位授权码">
+    <label>发件人签名 <span class="smtp-hint">（可选，邮件底部显示的名字）</span></label>
+    <input type="text" id="smtpSenderName" placeholder="例如：王明 / TradeMaster">
+    <div class="smtp-msg" id="smtpMsg"></div>
+    <div class="smtp-actions">
+      <button class="smtp-btn-save" id="btnSmtpSave">&#x1f4be; 保存</button>
+      <button class="smtp-btn-test" id="btnSmtpTest">&#x1f4e8; 发送测试邮件</button>
+      <button class="smtp-btn-close" id="btnSmtpClose">关闭</button>
     </div>
-    <div class="email-list" id="emailList"><div style="text-align:center;padding:30px;color:#a3bfd8;font-size:13px">暂无邮件</div></div>
+    <div class="smtp-hint" style="margin-top:12px;text-align:center">
+      QQ邮箱授权码获取：设置 → 账户 → POP3/SMTP服务 → 开启 → 获取授权码
+    </div>
   </div>
+</div>
 
-  <!-- Main Chat Area -->
+<!-- Left Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span>📅 展会情报</span>
+    <button class="sidebar-close" id="btnSidebarClose">✕</button>
+  </div>
+  <div class="sidebar-body" id="sidebarBody">
+    <div style="text-align:center;padding:20px;color:var(--text4);font-size:12px">登录后展示产品相关展会信息</div>
+  </div>
+</div>
+
+<!-- Sidebar Toggle (thin bar on left edge) -->
+<div class="sidebar-toggle" id="sidebarToggle" title="展开展会情报面板">
+  <span>📅</span>
+  <span class="sidebar-toggle-text">展会情报</span>
+</div>
+
+<!-- Chat Container -->
+<div class="chat-container" id="chatContainer">
   <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0">
     <div class="chat-header">
-      <h1><span>&#x1f310;</span> 外贸通</h1>
+      <h1><span>&#x1f310;</span> 外贸通 <span style="font-weight:400;font-size:11px;color:var(--text4)">TradeMaster · AI外贸智能体平台</span></h1>
       <div class="header-actions">
-        <button class="btn-toggle-email" id="btnToggleEmail">&#x1f4e7; <span class="badge" id="emailBadge">0</span></button>
+        <div class="lang-toggle"><button class="lang-btn active" id="langZH">中</button><button class="lang-btn" id="langEN">EN</button></div>
+        <button class="btn-sm" id="btnSmtpSettings" title="SMTP邮箱设置">📧 SMTP</button>
+        <button class="btn-toggle-email" id="btnToggleEmail">&#x1f4e7; 邮件箱 <span class="badge" id="emailBadge">0</span></button>
+        <button class="btn-toggle-email" id="btnToggleContacts">&#x1f4cb; 客户跟进 <span class="badge" id="contactBadge">0</span></button>
         <span class="user-bar" id="userBar">
           <span id="userIdentityIcon"></span>
           <span id="userEmailDisplay"></span>
           <span class="ubadge" id="userBadge"></span>
         </span>
         <button class="btn-sm" id="btnLogout" style="display:none">登出</button>
-        <button class="btn-sm" onclick="clearChat()">清空</button>
+        <button class="btn-sm" id="btnTheme" title="切换深色/浅色主题">🌓</button>
+        <button class="btn-sm" id="btnRetryQueue" title="重试队列" style="display:none" onclick="if(getFailedQueue().length>0){showRetryQueueMsg();processRetryQueue();}">🔄 <span id="retryBadge">0</span></button>
+        <button class="btn-sm" id="btnClear" onclick="clearChat()">清空</button>
       </div>
     </div>
 
+    <div class="email-panel" id="emailPanel">
+      <div class="email-stats" id="emailStatsBar">
+        <div class="email-stat"><div class="es-val" id="esTotal">0</div><div class="es-label">Total Sent</div></div>
+        <div class="email-stat"><div class="es-val blue" id="esOpened">0</div><div class="es-label">Opened</div></div>
+        <div class="email-stat"><div class="es-val green" id="esReplied">0</div><div class="es-label">Replied</div></div>
+        <div class="email-stat"><div class="es-val orange" id="esPending">0</div><div class="es-label">Pending</div></div>
+        <div class="email-stat"><div class="es-val red" id="esBounced">0</div><div class="es-label">Bounced</div></div>
+        <div class="email-stat"><div class="es-val blue" id="esRate">0%</div><div class="es-label">Open Rate</div></div>
+      </div>
+      <div class="email-filter-tabs">
+        <button class="email-filter-tab active" data-filter="all">全部</button>
+        <button class="email-filter-tab" data-filter="sent">已发送</button>
+        <button class="email-filter-tab" data-filter="replied">已回复</button>
+        <button class="email-filter-tab" data-filter="pending">待跟进</button>
+      </div>
+      <div class="email-list" id="emailList"><div style="text-align:center;padding:8px;color:#a3bfd8;font-size:12px">暂无邮件</div></div>
+    </div>
+
+    <div class="email-panel" id="contactPanel">
+      <div class="email-stats" id="contactStatsBar">
+        <div class="email-stat"><div class="es-val" id="csTotal">0</div><div class="es-label">Total</div></div>
+        <div class="email-stat"><div class="es-val orange" id="csPending">0</div><div class="es-label">待联系</div></div>
+        <div class="email-stat"><div class="es-val blue" id="csContacted">0</div><div class="es-label">已联系</div></div>
+        <div class="email-stat"><div class="es-val green" id="csReplied">0</div><div class="es-label">已回复</div></div>
+        <div class="email-stat"><div class="es-val red" id="csReminder">0</div><div class="es-label">需提醒</div></div>
+      </div>
+      <div class="email-filter-tabs">
+        <button class="email-filter-tab active" data-filter="all">全部</button>
+        <button class="email-filter-tab" data-filter="pending">待联系</button>
+        <button class="email-filter-tab" data-filter="contacted">已联系</button>
+        <button class="email-filter-tab" data-filter="replied">已回复</button>
+      </div>
+      <div class="email-list" id="contactList"><div style="text-align:center;padding:8px;color:#a3bfd8;font-size:12px">暂无客户</div></div>
+    </div>
+
     <div class="chat-messages" id="chatMessages">
-      <div class="welcome-message">
-        <h2>&#x1f44b; 欢迎使用外贸通</h2>
-        <p>我是您的智能外贸业务助理</p>
+      <div class="welcome-message" id="welcomeMessage">
+        <h2>&#x1f310; 外贸通 TradeMaster</h2>
+        <p>AI外贸全流程智能体平台</p>
+        <p style="font-size:12px;color:var(--text4)">买家搜索 &nbsp;·&nbsp; 开发信撰写 &nbsp;·&nbsp; 展会情报 &nbsp;·&nbsp; 邮件追踪 &nbsp;·&nbsp; 客户管理</p>
         <div class="quick-actions">
           <button class="quick-btn" data-action="帮我搜索电子产品相关的买家">&#x1f50d; 搜索买家</button>
           <button class="quick-btn" data-action="美元兑人民币的汇率是多少？">&#x1f4b1; 查询汇率</button>
@@ -270,6 +166,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
           <button class="quick-btn" data-action="帮助">&#x2753; 帮助</button>
         </div>
       </div>
+      <div id="dashboardPanel" style="display:none"></div>
     </div>
 
     <div class="chat-input-container">
@@ -281,856 +178,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   </div>
 </div>
 
-<script>
-var chatMessages, chatInput, btnSend;
-var isLoading = false;
-var currentUser = null;
-var regIdentity = 'seller';
-var emailFilter = 'all';
-var allEmails = [];
-
-document.addEventListener('DOMContentLoaded', function() {
-    chatMessages = document.getElementById('chatMessages');
-    chatInput = document.getElementById('chatInput');
-    btnSend = document.getElementById('btnSend');
-
-    // Auth buttons
-    document.getElementById('btnLogin').addEventListener('click', doLogin);
-    document.getElementById('btnRegister').addEventListener('click', doRegister);
-    document.getElementById('lnkRegister').addEventListener('click', showRegister);
-    document.getElementById('lnkLogin').addEventListener('click', showLogin);
-    document.getElementById('cardSeller').addEventListener('click', function(){selectIdentity('seller')});
-    document.getElementById('cardBoss').addEventListener('click', function(){selectIdentity('boss')});
-    document.getElementById('btnLogout').addEventListener('click', doLogout);
-    document.getElementById('btnToggleEmail').addEventListener('click', toggleEmailPanel);
-
-    // Email filter tabs
-    document.querySelectorAll('.email-filter-tab').forEach(function(tab) {
-        tab.addEventListener('click', function() { filterEmails(this.dataset.filter); });
-    });
-
-    // Quick action buttons
-    document.querySelectorAll('.quick-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() { sendQuickAction(this.dataset.action); });
-    });
-
-    // Chat input
-    chatInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
-    chatInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
-    btnSend.addEventListener('click', sendMessage);
-
-    // Auto-login
-    try {
-        var saved = localStorage.getItem('tradeMasterUser');
-        if (saved) {
-            currentUser = JSON.parse(saved);
-            showAuthOverlay(false);
-            updateUserBar();
-            document.getElementById('emailPanel').classList.remove('closed');
-            loadEmailBox();
-        } else {
-            showAuthOverlay(true);
-        }
-    } catch(e) { showAuthOverlay(true); }
-});
-
-// ===== Auth Functions =====
-function selectIdentity(id) {
-    regIdentity = id;
-    document.getElementById('cardSeller').className = 'identity-card' + (id === 'seller' ? ' selected' : '');
-    document.getElementById('cardBoss').className = 'identity-card' + (id === 'boss' ? ' selected' : '');
-}
-
-function showRegister() {
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'block';
-    document.getElementById('authSubtitle').textContent = '创建新账号';
-}
-
-function showLogin() {
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('authSubtitle').textContent = '登录您的账号';
-}
-
-function showAuthOverlay(show) {
-    document.getElementById('authOverlay').style.display = show ? 'flex' : 'none';
-}
-
-function updateUserBar() {
-    if (!currentUser) return;
-    document.getElementById('userBar').style.display = 'flex';
-    document.getElementById('btnLogout').style.display = 'inline-block';
-    document.getElementById('userEmailDisplay').textContent = currentUser.email;
-    document.getElementById('userBadge').textContent = currentUser.identity === 'boss' ? '老板' : '销售';
-    document.getElementById('userIdentityIcon').textContent = currentUser.identity === 'boss' ? '\u{1f454}' : '\u{1f9d1}‍\u{1f4bc}';
-}
-
-async function doLogin() {
-    var email = document.getElementById('loginEmail').value.trim();
-    var errEl = document.getElementById('loginError');
-    if (!email) { errEl.textContent = '请输入邮箱地址'; errEl.style.display = 'block'; return; }
-    errEl.style.display = 'none';
-    try {
-        var resp = await fetch('/api/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email: email})
-        });
-        var data = await resp.json();
-        if (data.success) {
-            currentUser = data.user;
-            localStorage.setItem('tradeMasterUser', JSON.stringify(currentUser));
-            showAuthOverlay(false);
-            updateUserBar();
-            document.getElementById("emailPanel").classList.remove("closed");
-            loadEmailBox();
-            chatInput.focus();
-        } else {
-            errEl.textContent = data.error || '登录失败';
-            errEl.style.display = 'block';
-        }
-    } catch(e) {
-        errEl.textContent = '网络连接失败';
-        errEl.style.display = 'block';
-    }
-}
-
-async function doRegister() {
-    var email = document.getElementById('regEmail').value.trim();
-    var phone = document.getElementById('regPhone').value.trim();
-    var company = document.getElementById('regCompany').value.trim();
-    var product = document.getElementById('regProduct').value.trim();
-    var errEl = document.getElementById('regError');
-    if (!email || email.indexOf('@') < 0) { errEl.textContent = '请输入有效的邮箱地址'; errEl.style.display = 'block'; return; }
-    if (!phone) { errEl.textContent = '请输入联系电话'; errEl.style.display = 'block'; return; }
-    if (!product) { errEl.textContent = '请输入主营产品'; errEl.style.display = 'block'; return; }
-    errEl.style.display = 'none';
-    try {
-        var resp = await fetch('/api/register', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email: email, phone: phone, company: company, product: product, identity: regIdentity})
-        });
-        var data = await resp.json();
-        if (data.success) {
-            currentUser = data.user;
-            localStorage.setItem('tradeMasterUser', JSON.stringify(currentUser));
-            showAuthOverlay(false);
-            updateUserBar();
-            document.getElementById("emailPanel").classList.remove("closed");
-            loadEmailBox();
-            chatInput.focus();
-        } else {
-            errEl.textContent = data.error || '注册失败';
-            errEl.style.display = 'block';
-        }
-    } catch(e) {
-        errEl.textContent = '网络连接失败';
-        errEl.style.display = 'block';
-    }
-}
-
-function doLogout() {
-    currentUser = null;
-    localStorage.removeItem('tradeMasterUser');
-    document.getElementById('userBar').style.display = 'none';
-    document.getElementById('btnLogout').style.display = 'none';
-    showAuthOverlay(true);
-    chatMessages.innerHTML = '<div class="welcome-message"><h2>&#x1f44b; 欢迎使用外贸通</h2><p>我是您的智能外贸业务助理</p></div>';
-}
-
-// ===== Email Panel =====
-function toggleEmailPanel() {
-    var panel = document.getElementById('emailPanel');
-    panel.classList.toggle('closed');
-    if (!panel.classList.contains('closed')) loadEmailBox();
-}
-
-function filterEmails(filter) {
-    emailFilter = filter;
-    document.querySelectorAll('.email-filter-tab').forEach(function(t) {
-        t.classList.toggle('active', t.dataset.filter === filter);
-    });
-    renderEmailList();
-}
-
-async function loadEmailBox() {
-    if (!currentUser) return;
-    try {
-        var resp = await fetch('/api/emails/sent', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({user_email: currentUser.email})
-        });
-        var data = await resp.json();
-        if (data.success) {
-            allEmails = data.emails || [];
-            renderEmailList();
-            updateEmailBadge();
-        }
-    } catch(e) {}
-}
-
-function updateEmailBadge() {
-    var badge = document.getElementById('emailBadge');
-    var now = new Date();
-    var pending = 0;
-    allEmails.forEach(function(e) {
-        if (e.status === 'sent' || e.status === 'no_reply') {
-            var days = (now - new Date(e.sent_at.replace(' ', 'T'))) / 86400000;
-            if (days >= 1) pending++;
-        }
-    });
-    badge.textContent = pending;
-    badge.className = 'badge' + (pending > 0 ? ' show' : '');
-}
-
-function renderEmailList() {
-    var list = document.getElementById('emailList');
-    var filtered = allEmails;
-    var now = new Date();
-    if (emailFilter === 'sent') filtered = allEmails.filter(function(e) { return e.status === 'sent' || e.status === 'no_reply'; });
-    else if (emailFilter === 'replied') filtered = allEmails.filter(function(e) { return e.status === 'replied'; });
-    else if (emailFilter === 'pending') {
-        filtered = allEmails.filter(function(e) {
-            if (e.status !== 'sent' && e.status !== 'no_reply') return false;
-            return (now - new Date(e.sent_at.replace(' ', 'T'))) / 86400000 >= 1;
-        });
-    }
-    filtered.sort(function(a, b) { return new Date(b.sent_at.replace(' ', 'T')) - new Date(a.sent_at.replace(' ', 'T')); });
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:30px;color:#a3bfd8;font-size:13px">' + (allEmails.length === 0 ? '暂无邮件' : '无匹配邮件') + '</div>';
-        return;
-    }
-    var statusLabel = {sent: '已发送', replied: '已回复', bounced: '已退回', no_reply: '未回复'};
-    list.innerHTML = filtered.map(function(e, i) {
-        var st = e.status || 'sent';
-        var days = Math.floor((now - new Date(e.sent_at.replace(' ', 'T'))) / 86400000);
-        var timeStr = days === 0 ? '今天' : days === 1 ? '昨天' : days + '天前';
-        return '<div class="email-item" onclick="toggleEmailDetail(' + i + ')">' +
-            '<div><span class="ei-status ' + st + '">' + (statusLabel[st] || st) + '</span>' +
-            '<span class="ei-date">' + timeStr + '</span></div>' +
-            '<div class="ei-to">' + (e.to_name || e.to) + '</div>' +
-            '<div class="ei-subject">' + (e.subject || '') + '</div>' +
-            '<div class="ei-detail"><b>To:</b> ' + (e.to || '') + '<br><b>Subject:</b> ' + (e.subject || '') +
-            '<br><div style="color:#999">' + (e.body_preview || '') + '</div>' +
-            '<div class="ei-actions" onclick="event.stopPropagation()">' +
-            '<button class="ei-btn" onclick="markEmailStatus(\'' + e.to + '\',\'replied\')">标记已回复</button>' +
-            '<button class="ei-btn" onclick="markEmailStatus(\'' + e.to + '\',\'bounced\')">标记已退回</button>' +
-            '<button class="ei-btn" onclick="followUpEmail(\'' + e.to + '\',\'' + (e.to_name || '') + '\',\'' + (e.subject || '') + '\')">跟进</button>' +
-            '</div></div></div>';
-    }).join('');
-}
-
-function toggleEmailDetail(i) {
-    document.querySelectorAll('.email-item')[i].classList.toggle('expanded');
-}
-
-async function markEmailStatus(to_email, status) {
-    if (!currentUser) return;
-    try {
-        await fetch('/api/emails/status', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({user_email: currentUser.email, to_email: to_email, status: status})
-        });
-        loadEmailBox();
-    } catch(e) {}
-}
-
-function followUpEmail(to, name, subject) {
-    chatInput.value = '帮我给 ' + (name || to) + ' 写一封跟进邮件，原主题：' + subject;
-    chatInput.focus();
-}
-
-// ===== Chat Functions =====
-function sendQuickAction(text) {
-    chatInput.value = text;
-    sendMessage();
-}
-
-async function clearChat() {
-    await fetch('/api/clear', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: 'default'})});
-    chatMessages.innerHTML = '<div class="welcome-message"><h2>&#x1f44b; 欢迎使用外贸通</h2><p>我是您的智能外贸业务助理</p></div>';
-}
-
-function addMessage(role, content, toolCalls) {
-    var welcome = chatMessages.querySelector('.welcome-message');
-    if (welcome) welcome.remove();
-    var div = document.createElement('div');
-    div.className = 'message ' + role;
-    div.innerHTML = '<div class="msg-avatar">' + (role === 'user' ? '\u{1f464}' : '\u{1f916}') + '</div>' +
-        '<div class="msg-content">' + formatMarkdown(content) + '</div>';
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function addTypingIndicator() {
-    var welcome = chatMessages.querySelector('.welcome-message');
-    if (welcome) welcome.remove();
-    var div = document.createElement('div');
-    div.className = 'message assistant';
-    div.id = 'typingMsg';
-    div.innerHTML = '<div class="msg-avatar">\u{1f916}</div>' +
-        '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function removeTypingIndicator() {
-    var el = document.getElementById('typingMsg');
-    if (el) el.remove();
-}
-
-// ===== Markdown Renderer =====
-function formatMarkdown(text) {
-    if (!text) return '';
-    text = text.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    text = text.replace(/^#{1,6}\s+/gm, '');
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-    var parts = text.split(/\n\n+/);
-    var result = [];
-    for (var i = 0; i < parts.length; i++) {
-        var p = parts[i].trim();
-        if (!p) continue;
-        if (/^---$/.test(p)) { result.push('<hr>'); continue; }
-        if (/^> /.test(p)) { result.push('<blockquote>' + p.replace(/^> /gm, '') + '</blockquote>'); continue; }
-        if (/^- .+/.test(p)) {
-            result.push('<ul>' + p.split('\n').map(function(l) { return '<li>' + l.replace(/^- /, '') + '</li>'; }).join('') + '</ul>');
-            continue;
-        }
-        if (/^\d+\. .+/.test(p)) {
-            result.push('<ol>' + p.split('\n').map(function(l) { return '<li>' + l.replace(/^\d+\. /, '') + '</li>'; }).join('') + '</ol>');
-            continue;
-        }
-        p = p.replace(/\n/g, '<br>');
-        result.push('<p>' + p + '</p>');
-    }
-    return result.join('');
-}
-
-// ===== Streaming Chat =====
-async function sendMessage() {
-    var message = chatInput.value.trim();
-    if (!message || isLoading) return;
-    isLoading = true;
-    btnSend.disabled = true;
-    chatInput.value = '';
-    chatInput.style.height = 'auto';
-    addMessage('user', message);
-    addTypingIndicator();
-    sessionStorage.setItem('lastQuestion', message);
-    try {
-        await sendMessageStream(message);
-    } catch(e) {
-        removeTypingIndicator();
-        try { await sendMessageFallback(message); }
-        catch(e2) { removeTypingIndicator(); addMessage('assistant', '网络错误，请稍后重试'); }
-    } finally {
-        isLoading = false;
-        btnSend.disabled = false;
-        chatInput.focus();
-    }
-}
-
-async function sendMessageFallback(message) {
-    var resp = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: message, session_id: currentUser ? currentUser.email : 'default', user_email: currentUser ? currentUser.email : ''})
-    });
-    var data = await resp.json();
-    if (data.error) addMessage('assistant', data.error);
-    else addMessage('assistant', data.reply, data.tool_calls);
-}
-
-async function sendMessageStream(message) {
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
-
-    var resp = await fetch('/api/chat/stream', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: message, session_id: currentUser ? currentUser.email : 'default', user_email: currentUser ? currentUser.email : ''}),
-        signal: controller.signal
-    });
-    if (!resp.ok) { clearTimeout(timeoutId); throw new Error('HTTP ' + resp.status); }
-
-    removeTypingIndicator();
-    var msgDiv = createStreamMessage();
-    var fullText = '';
-    var toolCalls = [];
-    var lastTc = null;
-    var tracker = msgDiv.querySelector('.progress-tracker');
-
-    var reader = resp.body.getReader();
-    var decoder = new TextDecoder();
-    var buffer = '';
-
-    try {
-        while (true) {
-            var result = await reader.read();
-            clearTimeout(timeoutId);
-            if (result.done) break;
-            buffer += decoder.decode(result.value, {stream: true});
-            var lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
-                if (!line.startsWith('data: ')) continue;
-                try { var event = JSON.parse(line.slice(6)); }
-                catch(e) { continue; }
-
-                switch (event.type) {
-                    case 'thinking':
-                        addProgressStep(tracker, event.message, '', 'thinking');
-                        break;
-                    case 'text':
-                        fullText += event.content;
-                        updateStreamText(msgDiv, fullText);
-                        break;
-                    case 'tool_call':
-                        lastTc = {tool: event.tool, label: event.label, args: event.args, step: event.step, result: null};
-                        toolCalls.push(lastTc);
-                        addProgressStep(tracker, event.label || event.tool, event.detail, event.tool + '_' + event.step);
-                        break;
-                    case 'tool_result':
-                        var tc = lastTc;
-                        for (var j = toolCalls.length - 1; j >= 0; j--) {
-                            if (toolCalls[j].tool === event.tool && !toolCalls[j].result) { tc = toolCalls[j]; break; }
-                        }
-                        if (tc) { tc.result = event.result; tc.summary = event.summary; }
-                        markProgressDone(tracker, event.tool + '_' + event.step, event.summary);
-                        lastTc = null;
-                        break;
-                    case 'evaluation':
-                        renderEvaluationCard(msgDiv, event, fullText);
-                        break;
-                    case 'text_improved':
-                        fullText += event.content;
-                        updateStreamText(msgDiv, fullText);
-                        break;
-                    case 'error':
-                        fullText += '\n' + event.message;
-                        updateStreamText(msgDiv, fullText);
-                        break;
-                    case 'done':
-                        break;
-                }
-            }
-            timeoutId = setTimeout(function() { controller.abort(); }, 30000);
-        }
-    } catch(e) {
-        if (e.name === 'AbortError' && !fullText) fullText = '请求超时，请简化问题后重试';
-        else if (e.name !== 'AbortError') throw e;
-    }
-    clearTimeout(timeoutId);
-    finalizeStreamMessage(msgDiv, fullText, toolCalls);
-}
-
-function createStreamMessage() {
-    var welcome = chatMessages.querySelector('.welcome-message');
-    if (welcome) welcome.remove();
-    var div = document.createElement('div');
-    div.className = 'message assistant';
-    div.id = 'streamMsg';
-    div.innerHTML = '<div class="msg-avatar">\u{1f916}</div>' +
-        '<div class="msg-content">' +
-            '<div class="progress-tracker" style="display:none"></div>' +
-            '<div class="stream-text"></div>' +
-        '</div>';
-    chatMessages.appendChild(div);
-    return div;
-}
-
-function addProgressStep(tracker, label, detail, stepId) {
-    if (!tracker) return;
-    tracker.style.display = 'block';
-    var sid = stepId.replace(/[^a-zA-Z0-9]/g, '_');
-    var existing = document.getElementById('ps_' + sid);
-    if (existing) {
-        existing.className = 'progress-step working';
-        existing.querySelector('.ps-status').innerHTML = '<span class="mini-spinner"></span> ' + (detail || 'Working...');
-        return;
-    }
-    var el = document.createElement('div');
-    el.className = 'progress-step working';
-    el.id = 'ps_' + sid;
-    el.innerHTML = '<div class="ps-icon">...</div>' +
-        '<div class="ps-content"><div class="ps-label">' + label + '</div><div class="ps-summary"></div></div>' +
-        '<div class="ps-status"><span class="mini-spinner"></span> ' + (detail || 'Working...') + '</div>';
-    tracker.appendChild(el);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function markProgressDone(tracker, stepId, summary) {
-    var el = document.getElementById('ps_' + stepId.replace(/[^a-zA-Z0-9]/g, '_'));
-    if (!el) return;
-    el.className = 'progress-step done';
-    el.querySelector('.ps-icon').textContent = 'OK';
-    el.querySelector('.ps-status').textContent = 'Done';
-    if (summary) el.querySelector('.ps-summary').textContent = summary;
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function markAllProgressDone(tracker) {
-    if (!tracker) return;
-    tracker.querySelectorAll('.progress-step.working').forEach(function(el) {
-        el.className = 'progress-step done';
-        el.querySelector('.ps-icon').textContent = 'OK';
-        el.querySelector('.ps-status').textContent = 'Done';
-    });
-    if (!tracker.querySelector('.progress-all-done')) {
-        var footer = document.createElement('div');
-        footer.className = 'progress-all-done';
-        footer.textContent = 'All done';
-        tracker.appendChild(footer);
-    }
-}
-
-function updateStreamText(msgDiv, text) {
-    var area = msgDiv.querySelector('.stream-text');
-    if (area) area.innerHTML = formatMarkdown(text);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function addAnswerToolbar(msgDiv, text) {
-    var content = msgDiv.querySelector('.msg-content');
-    if (!content) return;
-
-    var toolbar = document.createElement('div');
-    toolbar.className = 'answer-toolbar';
-    toolbar.style.cssText = 'display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;';
-
-    // Copy button
-    var copyBtn = document.createElement('button');
-    copyBtn.textContent = '📋 复制回答';
-    copyBtn.style.cssText = 'padding:4px 10px;border:1px solid #d0e2f2;background:#fff;color:#6989a8;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;';
-    copyBtn.onclick = function() {
-        var plainText = text.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, '');
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(plainText).then(function() {
-                copyBtn.textContent = '✅ 已复制'; copyBtn.style.color = '#5bba8a';
-                setTimeout(function() { copyBtn.textContent = '📋 复制回答'; copyBtn.style.color = '#6989a8'; }, 2000);
-            });
-        }
-    };
-    toolbar.appendChild(copyBtn);
-
-    // Regenerate button
-    var redoBtn = document.createElement('button');
-    redoBtn.textContent = '🔄 重新生成';
-    redoBtn.style.cssText = 'padding:4px 10px;border:1px solid #d0e2f2;background:#fff;color:#6989a8;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;';
-    redoBtn.onclick = function() {
-        var q = sessionStorage.getItem('lastQuestion');
-        if (q) { chatInput.value = q; sendMessage(); }
-    };
-    toolbar.appendChild(redoBtn);
-
-    content.appendChild(toolbar);
-}
-
-function finalizeStreamMessage(msgDiv, text, toolCalls) {
-    markAllProgressDone(msgDiv.querySelector('.progress-tracker'));
-    updateStreamText(msgDiv, text);
-    appendContextActions(msgDiv.querySelector('.msg-content'), text, toolCalls);
-    addAnswerToolbar(msgDiv, text);
-
-    // Check for email results
-    if (toolCalls) {
-        toolCalls.forEach(function(tc) {
-            if (tc.result && tc.result.action === 'open_mailto') {
-                renderEmailActions(msgDiv.querySelector('.msg-content'), tc.result);
-            }
-            if (tc.tool === 'send_email' && tc.result && tc.result.success) {
-                setTimeout(loadEmailBox, 500);
-            }
-        });
-    }
-
-    // Auto-evaluate via GAN (non-blocking, after answer is shown)
-    var lastQuestion = sessionStorage.getItem('lastQuestion');
-    if (lastQuestion && text && text.length > 50) {
-        autoEvaluate(msgDiv, lastQuestion, text);
-    }
-
-    msgDiv.removeAttribute('id');
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function autoEvaluate(msgDiv, question, answer) {
-    fetch('/api/evaluate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({question: question, answer: answer})
-    }).then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.success && data.evaluation) {
-            renderEvaluationCard(msgDiv, data.evaluation, answer);
-        }
-    }).catch(function() {});
-}
-
-// ===== Context Actions =====
-function appendContextActions(container, text, toolCalls) {
-    var actions = [];
-    var added = {};
-
-    function add(label, action) {
-        if (!added[label]) { added[label] = true; actions.push({label: label, action: action}); }
-    }
-
-    // Detect companies from bold text
-    var companies = [];
-    var m = text.match(/\*\*([^*]{2,40})\*\*/g);
-    if (m) {
-        m.forEach(function(b) {
-            var name = b.replace(/\*\*/g, '').trim();
-            if (!/^[一-鿿]{1,3}$/.test(name) && !/进口|分销|采购|建议|市场|类别|类型|领域|开发信/.test(name)) {
-                companies.push(name);
-            }
-        });
-    }
-
-    // Detect keyword from tool calls
-    var keyword = '';
-    if (toolCalls) {
-        toolCalls.forEach(function(tc) {
-            if (tc.args && tc.args.keyword) keyword = tc.args.keyword;
-            if (tc.args && tc.args.currency) keyword = tc.args.currency;
-        });
-    }
-
-    if (companies.length > 0) {
-        add('📊 分析 ' + companies[0], '分析一下 ' + companies[0]);
-        add('✉️ 给 ' + companies[0] + ' 写开发信', '给 ' + companies[0] + ' 写一封开发信');
-    }
-    if (keyword) add('🔍 更多 ' + keyword + ' 买家', '帮我搜索更多 ' + keyword + ' 的买家');
-    if (/邮件|开发信|email/i.test(text)) add('📧 发送邮件', '帮我发送这封邮件');
-    if (actions.length === 0) {
-        add('🔍 搜索买家', '帮我搜索相关产品的买家');
-        add('💱 查询汇率', '美元兑人民币汇率');
-    }
-    if (actions.length > 4) actions = actions.slice(0, 4);
-
-    var div = document.createElement('div');
-    div.className = 'context-actions';
-    actions.forEach(function(a) {
-        var btn = document.createElement('button');
-        btn.className = 'context-action-btn';
-        btn.textContent = a.label;
-        btn.addEventListener('click', function() { sendQuickAction(a.action); });
-        div.appendChild(btn);
-    });
-    container.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// ===== Email Actions =====
-function renderEvaluationCard(msgDiv, evalData, fullText) {
-    var content = msgDiv.querySelector('.msg-content');
-    if (!content) return;
-
-    // Remove existing eval card if any
-    var existing = content.querySelector('.eval-card');
-    if (existing) existing.remove();
-
-    var scores = evalData.scores || {};
-    var strengths = evalData.strengths || [];
-    var weaknesses = evalData.weaknesses || [];
-    var suggestion = evalData.suggestion || '';
-    var error = evalData.error || '';
-    var overall = parseFloat(scores.overall) || 5;
-
-    if (error) {
-        var errDiv = document.createElement('div');
-        errDiv.className = 'eval-error';
-        errDiv.textContent = error;
-        content.appendChild(errDiv);
-        return;
-    }
-
-    // Build score bars
-    var dims = [
-        {key: 'relevance', label: '相关'},
-        {key: 'accuracy', label: '准确'},
-        {key: 'completeness', label: '完整'},
-        {key: 'practicality', label: '实用'},
-        {key: 'language', label: '语言'},
-        {key: 'overall', label: '综合'},
-    ];
-
-    var scoreBars = '';
-    dims.forEach(function(d) {
-        var val = parseFloat(scores[d.key]) || 0;
-        var w = Math.round(val * 10);
-        var cls = val >= 8 ? 'hi' : val >= 6 ? 'mid' : 'low';
-        scoreBars += '<div class="eval-score-row">' +
-            '<span class="eval-score-label">' + d.label + '</span>' +
-            '<div class="eval-score-bar"><div class="eval-score-fill ' + cls + '" style="width:' + w + '%"></div></div>' +
-            '<span class="eval-score-val">' + val.toFixed(1) + '</span>' +
-            '</div>';
-    });
-
-    var badgeClass = overall >= 8 ? 'good' : overall >= 6 ? 'ok' : 'poor';
-    var badgeText = overall >= 8 ? 'Good' : overall >= 6 ? 'OK' : 'Poor';
-
-    // Build strengths/weaknesses lists
-    var strList = strengths.length > 0
-        ? '<ul>' + strengths.map(function(s) { return '<li>' + s + '</li>'; }).join('') + '</ul>'
-        : '<p style="color:#a3bfd8">-</p>';
-    var weakList = weaknesses.length > 0
-        ? '<ul>' + weaknesses.map(function(w) { return '<li>' + w + '</li>'; }).join('') + '</ul>'
-        : '<p style="color:#a3bfd8">-</p>';
-
-    var html = '<div class="eval-card">' +
-        '<div class="eval-header">' +
-            '<span class="eval-title">🧠 DeepSeek Evaluation</span>' +
-            '<span class="eval-badge ' + badgeClass + '">' + badgeText + ' ' + overall.toFixed(1) + '</span>' +
-        '</div>' +
-        '<div class="eval-body">' +
-            '<div class="eval-scores">' + scoreBars + '</div>' +
-            '<div class="eval-lists">' +
-                '<div class="eval-strengths"><h4>✅ Strengths</h4>' + strList + '</div>' +
-                '<div class="eval-weaknesses"><h4>⚠️ Weaknesses</h4>' + weakList + '</div>' +
-            '</div>';
-
-    if (suggestion) {
-        html += '<div class="eval-suggestion"><strong>💡 Suggestion:</strong> ' + suggestion + '</div>';
-    }
-
-    if (overall < 8.0) {
-        html += '<div class="eval-actions">' +
-            '<button class="eval-keep-btn" onclick="triggerImprove(this)" style="background:#5ba0d9;color:#fff;border-color:#5ba0d9">Get Improved Answer</button>' +
-            '</div>';
-    }
-
-    html += '</div></div>';
-
-    // Insert before stream-text content area
-    var textArea = content.querySelector('.stream-text');
-    if (textArea) {
-        textArea.insertAdjacentHTML('beforebegin', html);
-    } else {
-        content.insertAdjacentHTML('beforeend', html);
-    }
-
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function keepOriginalAnswer() {} // deprecated
-
-function triggerImprove(btn) {
-    btn.textContent = 'Improving...'; btn.disabled = true;
-    var question = sessionStorage.getItem('lastQuestion') || '';
-    var msgEl = btn.closest('.message');
-    var textArea = msgEl ? msgEl.querySelector('.stream-text') : null;
-    var answer = textArea ? textArea.textContent : '';
-
-    if (!question || !answer) { btn.textContent = 'Error'; return; }
-
-    fetch('/api/evaluate/improve', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            question: question, answer: answer,
-            session_id: currentUser ? currentUser.email : 'default',
-            user_email: currentUser ? currentUser.email : ''
-        })
-    }).then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        var reader = r.body.getReader();
-        var decoder = new TextDecoder(); var buffer = '';
-        var improvedText = '';
-        var msgContent = msgEl.querySelector('.msg-content');
-        if (!msgContent) return;
-
-        // Create improved section
-        var divider = document.createElement('div');
-        divider.className = 'improved-divider';
-        divider.innerHTML = '<span>GAN Improved Answer</span>';
-        msgContent.appendChild(divider);
-
-        var improvedArea = document.createElement('div');
-        improvedArea.className = 'stream-text-improved';
-        msgContent.appendChild(improvedArea);
-
-        function read() {
-            reader.read().then(function(result) {
-                if (result.done) { btn.textContent = 'Improved!'; return; }
-                buffer += decoder.decode(result.value, {stream: true});
-                var lines = buffer.split('\n'); buffer = lines.pop() || '';
-                lines.forEach(function(line) {
-                    if (!line.startsWith('data: ')) return;
-                    try { var e = JSON.parse(line.slice(6)); } catch(err) { return; }
-                    if (e.type === 'evaluation') {
-                        var card = msgContent.querySelector('.eval-card');
-                        if (card) card.remove();
-                        renderEvaluationCard(msgEl, e, answer);
-                    }
-                    if (e.type === 'text_improved') {
-                        improvedText += e.content;
-                        improvedArea.innerHTML = formatMarkdown(improvedText);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    }
-                });
-                read();
-            }).catch(function() { btn.textContent = 'Done'; });
-        }
-        read();
-    }).catch(function(e) {
-        btn.textContent = 'Retry';
-        btn.disabled = false;
-    });
-}
-
-function renderEmailActions(container, info) {
-    var div = document.createElement('div');
-    div.className = 'email-actions';
-    div.innerHTML = '<div class="ea-title">📧 邮件已生成</div>' +
-        '<div class="ea-info">To: <b>' + info.to_email + '</b> | Subject: <b>' + info.subject + '</b></div>' +
-        '<div class="ea-row">' +
-            '<button class="ea-copy">📋 复制邮件内容</button>' +
-            '<button class="ea-mail">✉️ 打开邮箱客户端</button>' +
-        '</div>';
-
-    div.querySelector('.ea-copy').addEventListener('click', function() {
-        var text = 'To: ' + info.to_email + '\nSubject: ' + info.subject + '\n\n' + info.body;
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(text).then(function() {
-                this.textContent = '✅ 已复制！粘贴到邮件中发送';
-                this.style.background = '#5bba8a';
-            }.bind(this));
-        } else {
-            var ta = document.createElement('textarea');
-            ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
-            document.body.appendChild(ta); ta.select();
-            document.execCommand('copy'); document.body.removeChild(ta);
-            this.textContent = '✅ 已复制！';
-            this.style.background = '#5bba8a';
-        }
-    });
-
-    div.querySelector('.ea-mail').addEventListener('click', function() {
-        window.open(info.mailto_url, '_blank');
-        this.textContent = '✅ 已打开，请粘贴发送';
-        this.style.color = '#5bba8a';
-    });
-
-    container.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-</script>
+<script src="/static/js/app.js"></script>
 </body>
 </html>

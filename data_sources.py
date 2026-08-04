@@ -6,6 +6,7 @@
 import os
 import json
 import re
+import threading
 import requests
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -16,30 +17,33 @@ from datetime import datetime
 # ============================================================
 EXCHANGE_RATE_CACHE = {}  # 简单缓存，避免频繁请求
 EXCHANGE_CACHE_TIME = None
+_exchange_lock = threading.Lock()
 
 
 def fetch_exchange_rates() -> Dict[str, Any]:
-    """从 open.er-api.com 获取最新汇率数据（以 USD 为基准）"""
+    """从 open.er-api.com 获取最新汇率数据（以 USD 为基准，线程安全）"""
     global EXCHANGE_RATE_CACHE, EXCHANGE_CACHE_TIME
 
-    # 缓存 1 小时
-    if EXCHANGE_CACHE_TIME and (datetime.now() - EXCHANGE_CACHE_TIME).seconds < 3600:
-        if EXCHANGE_RATE_CACHE:
-            return EXCHANGE_RATE_CACHE
+    with _exchange_lock:
+        # 缓存 1 小时
+        if EXCHANGE_CACHE_TIME and (datetime.now() - EXCHANGE_CACHE_TIME).seconds < 3600:
+            if EXCHANGE_RATE_CACHE:
+                return EXCHANGE_RATE_CACHE
 
     try:
         resp = requests.get("https://open.er-api.com/v6/latest/USD", timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             if data.get("result") == "success":
-                EXCHANGE_RATE_CACHE = data
-                EXCHANGE_CACHE_TIME = datetime.now()
+                with _exchange_lock:
+                    EXCHANGE_RATE_CACHE = data
+                    EXCHANGE_CACHE_TIME = datetime.now()
                 return data
     except Exception:
         pass
 
-    # 返回上一次缓存或 None
-    return EXCHANGE_RATE_CACHE or None
+    with _exchange_lock:
+        return EXCHANGE_RATE_CACHE or None
 
 
 # ============================================================
@@ -185,7 +189,7 @@ def search_companies_llm(query: str, limit: int = 10) -> List[Dict[str, Any]]:
         "Otherwise use common patterns like purchasing@website, info@website, sales@website, or inquiry@website based on their domain.\n"
         "IMPORTANT: always include an email field for every company."
     )
-    result = call_llm(system, user, max_tokens=1000, timeout=15)
+    result = call_llm(system, user, max_tokens=2000, timeout=25)
     if result:
         try:
             text = result.strip()
@@ -320,51 +324,56 @@ _llm_session = None
 
 
 def _get_llm_session():
-    """获取或创建 LLM 专用共享 Session"""
+    """获取或创建 LLM 专用共享 Session（绕过系统代理）"""
     global _llm_session
     if _llm_session is None:
         _llm_session = requests.Session()
+        _llm_session.trust_env = False  # 绕过系统代理直连
     return _llm_session
 
 
-def _get_synscale_config():
-    """读取 SynScale 配置"""
-    from dotenv import load_dotenv
-    load_dotenv()
-    return {
-        "api_key": os.getenv("SYNSCALE_API_KEY"),
-        "api_url": "http://synscale.onesyn.ai/v1/chat/completions",
-        "model": "deepseek-v4-pro",
-    }
-
-
-def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 1000, timeout: int = 12) -> Optional[str]:
-    """调用 SynScale API 生成文本（复用连接）"""
-    config = _get_synscale_config()
-    if not config["api_key"]:
+def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 2000, timeout: int = 25) -> Optional[str]:
+    """调用 LLM API 生成文本 — 多提供商自动切换"""
+    from services import LLM_PROVIDERS
+    if not LLM_PROVIDERS:
         return None
 
-    try:
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {config['api_key']}",
-        }
-        payload = {
-            "model": config["model"],
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.8,
-            "max_tokens": max_tokens,
-        }
-        session = _get_llm_session()
-        resp = session.post(config["api_url"], headers=headers, json=payload, timeout=timeout)
-        if resp.status_code == 200:
-            data = resp.json()
-            choices = data.get("choices", [])
-            if choices:
-                return choices[0].get("message", {}).get("content", "")
-    except Exception:
-        pass
+    session = _get_llm_session()
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    for provider in LLM_PROVIDERS:
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {provider['key']}",
+            }
+            payload = {
+                "model": provider["model"],
+                "messages": messages,
+                "temperature": 0.8,
+                "max_tokens": max_tokens,
+            }
+            resp = session.post(provider["url"], headers=headers, json=payload, timeout=timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                choices = data.get("choices", [])
+                if choices:
+                    msg = choices[0].get("message", {})
+                    result = msg.get("content", "") or msg.get("reasoning_content", "")
+                    if result and ("We are asked" in result[:50] or "The user" in result[:50]):
+                        lines = result.strip().split("\n")
+                        for line in reversed(lines):
+                            line = line.strip()
+                            if line and not line.startswith(("We", "The user", "Let", "First", "I need", "This is", "So we")):
+                                return line
+                        return result.strip().rsplit(".", 2)[0] + "."
+                    return result
+            elif resp.status_code < 500:
+                break  # 4xx 不重试
+        except Exception as e:
+            print(f"[call_llm error] provider={provider['name']}: {e}")
+            continue  # 尝试下一个 provider
     return None

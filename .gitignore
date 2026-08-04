@@ -25,3 +25,15 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# Runtime data
+trademaster.db
+trademaster.db-shm
+trademaster.db-wal
+trademaster.log
+inquiry_followups.json
+tracking_pixels.json
+smtp_settings.json
+test_output*.txt
+test_final_persist.txt
+
