@@ -13,11 +13,16 @@ DEMO_PHONE = "13800138001"
 
 
 def init_demo_user():
-    """初始化演示账号（首次运行时自动创建）"""
+    """初始化演示账号（确保密码正确，即使已存在也会更新）"""
     from user_service import _load_users, _save_users, _hash_password
 
     users = _load_users()
     if DEMO_EMAIL in users:
+        # 确保密码哈希正确（修复旧账号密码不匹配问题）
+        users[DEMO_EMAIL]["password_hash"] = _hash_password(DEMO_PASSWORD)
+        users[DEMO_EMAIL]["product"] = DEMO_PRODUCT
+        users[DEMO_EMAIL]["company"] = DEMO_COMPANY
+        _save_users(users)
         return users[DEMO_EMAIL]
 
     user = {
@@ -149,26 +154,55 @@ DEMO_SCENARIOS = [
     },
 ]
 
+DEMO_SCENARIO_DATA = {
+    "scenario_1": {
+        "title": "场景一：新手卖家找东南亚蓝牙耳机进口商",
+        "category": "买家搜索 + 开发信",
+        "prompt": "我是深圳蓝牙耳机厂家，想做东南亚市场。帮我搜索新加坡和马来西亚的蓝牙耳机进口商，找到后给每家写一封开发信。",
+        "expected": "返回3-5家东南亚买家（含公司名/网站/采购类型/LinkedIn搜索链接），并自动生成英文开发信",
+        "sample_buyer": {"company_name": "AudioTech Asia Pte Ltd", "country": "Singapore", "website": "audiotechasia.sg", "product": "TWS Earphones"},
+    },
+    "scenario_2": {
+        "title": "场景二：处理欧洲客户询盘并做合规检查",
+        "category": "询盘处理 + 合规",
+        "prompt": "收到一封德国客户的询盘：'Dear supplier, we are interested in your ANC bluetooth earphones. Can you send CE/RoHS certificates and FOB price for 5000 units? Regards, Thomas from Berlin Audio GmbH, thomas@berlinaudio.de' 请帮我处理这个询盘。",
+        "expected": "自动提取客户信息→分类为真实采购→背景调研→生成英文回复（含CE/RoHS认证和FOB报价）→加入48h跟进",
+        "sample_buyer": {"company_name": "Berlin Audio GmbH", "country": "Germany", "email": "thomas@berlinaudio.de", "product": "ANC Bluetooth Earphones"},
+    },
+    "scenario_3": {
+        "title": "场景三：上传厂家Excel列表批量联系",
+        "category": "Excel批量 + 客户管理",
+        "prompt": "我有一份欧洲客户的Excel表格。请帮我上传表格（点📋按钮），然后针对每家客户分别写开发信。",
+        "expected": "上传Excel→解析表格→展示客户列表→选择客户→自动生成个性化开发信→加入客户管理Pipeline",
+        "sample_buyer": {"company_name": "Various", "country": "Europe", "count": 5},
+    },
+}
+
 DEMO_HELP = """
 ## 📋 TradeMaster 演示指南
 
 **演示账号**: demo@trademaster.com / demo2024
 **主营产品**: 蓝牙耳机 (Bluetooth Earphone)
 
-### 快速演示路径（5分钟）
+### 3个演示场景（一键操作）
 
-1. **登录** → 自动展示仪表盘（展销会+认证+统计）
-2. **搜索买家** → "帮我搜索德国蓝牙耳机进口商"
-3. **写开发信** → 点击上下文按钮"给XXX写开发信"
-4. **发送邮件** → 复制到剪贴板 / SMTP直发
-5. **查看跟进** → 点"📋 客户跟进"面板
+| 场景 | 演示内容 | 时长 |
+|------|---------|------|
+| 🆕 新手找客户 | 搜索东南亚买家→写开发信 | 1min |
+| 🇪🇺 欧洲询盘 | 处理德国客户询盘→合规检查→生成回复 | 1min |
+| 📋 批量联系 | 上传Excel→批量开发信→客户管理 | 1min |
+
+### 快速演示路径（3分钟）
+1. 登录 → 仪表盘自动展示展销会+认证+统计数据
+2. 输入场景提示词 → Agent自动完成全流程
+3. 展示左侧展销会面板 + 右侧3D心情玩偶
 
 ### 特色功能展示
-
-- 🌓 深色/浅色主题切换（右上角月亮按钮）
-- 📧 SMTP邮箱配置（📧SMTP按钮）
-- 📅 登录仪表盘（展销会情报自动匹配）
-- 📊 市场洞察（TWS市场规模/定价/趋势）
-- 🔄 API故障自动重试队列
-- 🛡️ 大企业邮箱自动拦截（试试搜"IKEA买家"）
+- 🌓 深色/浅色主题切换
+- 📅 展销会情报面板（50+展会数据库）
+- 🧸 心情玩偶（5种人格+心理学基础+主动问候）
+- 📋 Excel批量处理厂家列表
+- 📎 PDF产品手册上传解析
+- 🔄 多API故障自动切换
+- 🛡️ 大企业邮箱智能拦截
 """

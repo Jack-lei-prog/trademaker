@@ -81,6 +81,7 @@ from blueprints.inquiry_bp import inquiry_bp
 from blueprints.evaluate_bp import evaluate_bp
 from blueprints.contact_bp import contact_bp
 from blueprints.dashboard_bp import dashboard_bp
+from blueprints.doll_bp import doll_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(chat_bp)
@@ -89,6 +90,7 @@ app.register_blueprint(inquiry_bp)
 app.register_blueprint(evaluate_bp)
 app.register_blueprint(contact_bp)
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(doll_bp)
 
 
 # ============================================================

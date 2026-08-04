@@ -183,6 +183,149 @@ def api_docs():
     return jsonify(docs)
 
 
+@chat_bp.route("/api/upload/manual", methods=["POST"])
+def upload_manual():
+    """上传产品手册（PDF/DOCX/TXT），提取文本存入会话"""
+    import os, tempfile
+    file = request.files.get("file")
+    user_email = request.form.get("user_email", "").strip().lower()
+    session_id = request.form.get("session_id", user_email or "default")
+
+    if not file:
+        return jsonify({"success": False, "error": "请选择文件"}), 400
+
+    # 保存临时文件
+    ext = os.path.splitext(file.filename or "manual.pdf")[1].lower()
+    if ext not in (".pdf", ".txt", ".docx"):
+        return jsonify({"success": False, "error": f"不支持的格式: {ext}，支持 PDF/TXT/DOCX"}), 400
+
+    try:
+        text = ""
+        if ext == ".pdf":
+            from PyPDF2 import PdfReader
+            import io
+            reader = PdfReader(io.BytesIO(file.read()))
+            for page in reader.pages:
+                t = page.extract_text()
+                if t: text += t + "\n"
+        elif ext == ".txt":
+            text = file.read().decode("utf-8", errors="replace")
+        elif ext == ".docx":
+            return jsonify({"success": False, "error": "DOCX暂不支持，请先转成PDF或TXT"}), 400
+
+        if not text.strip():
+            return jsonify({"success": False, "error": "无法从文件中提取文字"}), 400
+
+        # 截取前 8000 字符存入会话
+        text = text.strip()[:8000]
+        word_count = len(text)
+
+        # 存入会话 metadata
+        metadata = db.get_session_metadata(user_email, session_id)
+        metadata["product_manual"] = text
+        metadata["manual_filename"] = file.filename
+        metadata["manual_uploaded_at"] = __import__('db')._now()
+        db.update_session_metadata(user_email, session_id, metadata)
+
+        return jsonify({
+            "success": True,
+            "message": f"已解析 {file.filename}，共 {word_count} 字符",
+            "filename": file.filename,
+            "preview": text[:300] + ("..." if len(text) > 300 else ""),
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": f"解析失败: {str(e)}"}), 500
+
+
+@chat_bp.route("/api/upload/excel", methods=["POST"])
+def upload_excel():
+    """上传厂家Excel表格，解析出厂家列表"""
+    import io, os as _os
+    file = request.files.get("file")
+    user_email = request.form.get("user_email", "").strip().lower()
+
+    if not file:
+        return jsonify({"success": False, "error": "请选择文件"}), 400
+
+    ext = _os.path.splitext(file.filename or "list.xlsx")[1].lower()
+    if ext not in (".xlsx", ".xls"):
+        return jsonify({"success": False, "error": f"不支持{wxt}，请上传 .xlsx 格式"}), 400
+
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(file.read()), read_only=True)
+        ws = wb.active
+
+        # 读取表头（第一行）
+        headers = []
+        for cell in ws[1]:
+            headers.append(str(cell.value or "").strip().lower())
+
+        # 映射常见列名到标准字段
+        col_map = {}
+        name_keys = ["company_name", "company", "name", "公司名", "公司名称", "厂家", "客户名称", "客户"]
+        email_keys = ["email", "mail", "e-mail", "邮箱", "邮件", "电子邮件"]
+        contact_keys = ["contact", "person", "contact_person", "name", "联系人", "姓名", "负责人"]
+        phone_keys = ["phone", "tel", "telephone", "mobile", "电话", "手机", "联系电话"]
+        country_keys = ["country", "nation", "国家", "地区"]
+        product_keys = ["product", "interest", "产品", "采购产品", "主营", "需求"]
+        website_keys = ["website", "web", "url", "site", "网站", "官网"]
+
+        for i, h in enumerate(headers):
+            h_lower = h.lower().replace(" ", "").replace("_", "")
+            if any(k in h_lower for k in name_keys): col_map["company_name"] = i
+            elif any(k in h_lower for k in email_keys): col_map["email"] = i
+            elif any(k in h_lower for k in contact_keys): col_map["contact_person"] = i
+            elif any(k in h_lower for k in phone_keys): col_map["phone"] = i
+            elif any(k in h_lower for k in country_keys): col_map["country"] = i
+            elif any(k in h_lower for k in product_keys): col_map["product_interest"] = i
+            elif any(k in h_lower for k in website_keys): col_map["website"] = i
+
+        # 如果没识别到 email 列，尝试模糊匹配
+        if "email" not in col_map:
+            for i, h in enumerate(headers):
+                if "@" in str(ws.cell(row=2, column=i+1).value or ""):
+                    col_map["email"] = i
+                    break
+
+        # 读取数据行
+        companies = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not any(row): continue
+            entry = {"company_name": "", "email": "", "contact_person": "",
+                     "phone": "", "country": "", "product_interest": "", "website": ""}
+            for field, idx in col_map.items():
+                val = str(row[idx] or "").strip()
+                entry[field] = val
+            # 至少要有公司名或邮箱
+            if entry["company_name"] or entry["email"]:
+                companies.append(entry)
+
+        if not companies:
+            return jsonify({"success": False, "error": "未找到有效数据，请检查Excel格式"}), 400
+
+        # 截取前100条
+        total = len(companies)
+        companies = companies[:100]
+
+        # 存入会话
+        import db as _db
+        metadata = _db.get_session_metadata(user_email or "", user_email or "default")
+        metadata["excel_companies"] = companies
+        _db.update_session_metadata(user_email or "", user_email or "default", metadata)
+
+        return jsonify({
+            "success": True,
+            "total": total,
+            "loaded": len(companies),
+            "columns": list(col_map.keys()),
+            "companies": companies,
+            "message": f"已解析 {len(companies)} 条厂家信息（共{total}条，最多加载100条）"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": f"解析失败: {str(e)}"}), 500
+
+
 def get_help_text():
     return """## 📖 使用帮助
 我可以帮您完成以下任务：

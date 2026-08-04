@@ -11,6 +11,7 @@
   --border: rgba(180,195,215,0.35); --border2: rgba(160,175,200,0.5);
   --accent: #4f8cff; --accent2: #3a6fd8; --accent-light: rgba(79,140,255,0.1);
   --accent-grad: linear-gradient(135deg, #4f8cff 0%, #6366f1 100%);
+  --coral: #ed6a4a; --coral-light: rgba(237,106,74,0.1);
   --green: #10b981; --green-bg: rgba(16,185,129,0.1);
   --red: #ef4444; --red-bg: rgba(239,68,68,0.08);
   --orange: #f59e0b; --orange-bg: rgba(245,158,11,0.1);
@@ -33,6 +34,7 @@ body.dark{
   --border: rgba(71,85,105,0.4); --border2: rgba(71,85,105,0.55);
   --accent: #60a5fa; --accent2: #3b82f6; --accent-light: rgba(96,165,250,0.12);
   --accent-grad: linear-gradient(135deg, #60a5fa 0%, #818cf8 100%);
+  --coral: #f87171; --coral-light: rgba(248,113,113,0.1);
   --green: #34d399; --green-bg: rgba(52,211,153,0.1);
   --red: #f87171; --red-bg: rgba(248,113,113,0.1);
   --orange: #fbbf24; --orange-bg: rgba(251,191,36,0.1);
@@ -166,7 +168,7 @@ body{
 
 /* ── Input Area ── */
 .chat-input-container{
-  padding: 10px 18px;
+  padding: 8px 18px 6px;
   background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border); flex-shrink:0;
 }
@@ -190,6 +192,11 @@ body{
 .btn-send:hover{transform: translateY(-1px); box-shadow: 0 6px 18px rgba(79,140,255,0.4)}
 .btn-send:active{transform: scale(0.95)}
 .btn-send:disabled{opacity:0.45;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* Input toolbar */
+.input-toolbar{display:flex;align-items:center;gap:8px;padding:0 0 2px;justify-content:space-between}
+.input-tool-btn{background:none;border:none;color:var(--text4);font-size:10px;cursor:pointer;padding:2px 8px;border-radius:10px;transition:all .2s;font-family:inherit;opacity:0.5;letter-spacing:.3px}
+.input-tool-btn:hover{opacity:1;color:var(--accent2);background:var(--accent-light)}
 
 /* ── Messages ── */
 .message{margin-bottom: 10px; display:flex; gap: 8px; animation: fadeIn .3s ease}
@@ -248,7 +255,34 @@ body{
 .typing-indicator span:nth-child(3){animation-delay:.4s}
 @keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
 
+/* Excel panel */
+.excel-panel{margin:10px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(12px)}
+.excel-header{padding:10px 16px;font-size:13px;font-weight:700;color:var(--text);background:var(--surface2);border-bottom:1px solid var(--border)}
+.excel-table-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
+.excel-table{width:100%;border-collapse:collapse;font-size:12px}
+.excel-table th{background:var(--surface3);padding:6px 8px;text-align:left;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1}
+.excel-table td{padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.excel-table tr:hover{background:var(--surface2)}
+.excel-actions{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+
+/* Agent badge */
+.agent-badge{display:none;padding:4px 10px;margin-bottom:6px;background:var(--accent-light);border-radius:12px;font-size:11px;font-weight:600;color:var(--accent2);animation:fadeIn .3s ease}
+
+/* Live-dot 呼吸灯 (Hub-inspired) */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--green-bg);display:inline-block;animation:livePulse 2s ease-in-out infinite}
+.live-dot.offline{background:var(--red);box-shadow:0 0 0 4px var(--red-bg)}
+@keyframes livePulse{0%,100%{opacity:1;box-shadow:0 0 0 4px var(--green-bg)}50%{opacity:0.6;box-shadow:0 0 0 8px var(--green-bg)}}
+
 /* ── Auth Panel ── */
+.auth-hero{display:flex;align-items:center;gap:40px;max-width:820px;margin:0 auto}
+.auth-hero-left{flex:1;text-align:left}
+.auth-hero-left h1{font-size:48px;line-height:1.08;letter-spacing:-1px;margin:0 0 12px;color:var(--text)}
+.auth-hero-left h1 em{font-style:normal;color:var(--accent)}
+.auth-hero-left .lead{font-size:16px;color:var(--text3);margin:0 0 16px;max-width:380px;line-height:1.6}
+.auth-hero-left .features{list-style:none;padding:0;margin:0}
+.auth-hero-left .features li{font-size:13px;color:var(--text3);padding:4px 0;display:flex;align-items:center;gap:8px}
+.auth-hero-left .features li::before{content:'◆';color:var(--coral);font-size:8px}
+.auth-hero-right{flex-shrink:0}
 .auth-overlay{
   position:fixed;top:0;left:0;width:100%;height:100%;
   background: var(--bg);
@@ -435,6 +469,18 @@ body{
 .db-tip::before{content:'💡 '}
 .db-empty{text-align:center;padding:10px;color:var(--text4);font-size:12px}
 
+/* Workflow tracker */
+.wf-tracker{display:flex;align-items:flex-start;gap:0;padding:8px 0;overflow-x:auto}
+.wf-stage{flex:1;min-width:70px;text-align:center;padding:8px 4px;border-radius:var(--radius-sm);cursor:pointer;transition:all .25s;position:relative;background:var(--surface2);border:1px solid var(--border)}
+.wf-stage:hover{background:var(--accent-light);transform:translateY(-1px)}
+.wf-stage.active{background:var(--accent-light);border-color:var(--accent)}
+.wf-stage.done{background:var(--green-bg);border-color:var(--green);opacity:0.8}
+.wf-stage-icon{font-size:18px;margin-bottom:2px}
+.wf-stage-name{font-size:10px;font-weight:700;color:var(--text);white-space:nowrap}
+.wf-stage-desc{font-size:9px;color:var(--text4);margin-top:1px}
+.wf-stage-arrow{position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--text4);font-size:14px;z-index:1}
+.wf-stage:last-child .wf-stage-arrow{display:none}
+
 /* ── Email Composer ── */
 .email-actions{
   margin-top:14px; background: var(--surface); border-radius: var(--radius);
@@ -507,7 +553,9 @@ body{
 .ps-summary{font-size:11px;color:var(--text4);margin-top:1px}
 .progress-all-done{text-align:center;padding:6px;font-size:12px;color:var(--green);background:var(--green-bg);border-top:1px solid rgba(16,185,129,0.2)}
 .mini-spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--orange);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
-.stream-spinner{display:inline-block;width:16px;height:16px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:6px;flex-shrink:0}
+.stream-spinner{display:none;width:16px;height:16px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:6px;flex-shrink:0}
+.streaming .stream-spinner{display:inline-block}
+.stream-done .stream-spinner{display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── SMTP Modal ── */
@@ -547,6 +595,76 @@ body{
 }
 .context-action-btn:hover{background:var(--accent-light);border-color:var(--accent);transform:translateY(-1px)}
 
+/* ── Mood Doll ── */
+.mood-doll{position:fixed;right:20px;bottom:20px;z-index:500;text-align:center;cursor:grab;user-select:none;transition:transform .2s}
+.mood-doll:active{cursor:grabbing}
+.mood-doll:hover{transform:scale(1.05)}
+.mood-doll.petted{animation:moodPet .4s ease}
+@keyframes moodPet{0%,100%{transform:scale(1)}30%{transform:scale(1.15) rotate(-5deg)}60%{transform:scale(0.95) rotate(5deg)}}
+.mood-doll.bounce{animation:moodBounce .5s ease}
+@keyframes moodBounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-15px)}60%{transform:translateY(-5px)}}
+
+/* Doll body */
+.mood-body{position:relative;width:80px;height:100px;margin:0 auto}
+.mood-head{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:2;cursor:pointer;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.mood-torso{width:40px;height:34px;border-radius:14px;position:absolute;top:38px;left:50%;transform:translateX(-50%);z-index:1}
+.mood-arm{width:16px;height:24px;border-radius:8px;position:absolute;top:40px;z-index:0}
+.mood-arm-l{left:2px;transform:rotate(15deg)}
+.mood-arm-r{right:2px;transform:rotate(-15deg)}
+.mood-leg{width:14px;height:16px;border-radius:7px;position:absolute;top:68px;z-index:0}
+.mood-leg-l{left:18px}
+.mood-leg-r{right:18px}
+
+/* Doll color themes */
+.mood-body.theme-bear .mood-torso,.mood-body.theme-bear .mood-arm,.mood-body.theme-bear .mood-leg{background:#fbbf24}
+.mood-body.theme-bear .mood-head{background:#fef3c7}
+.mood-body.theme-cat .mood-torso,.mood-body.theme-cat .mood-arm,.mood-body.theme-cat .mood-leg{background:#a78bfa}
+.mood-body.theme-cat .mood-head{background:#ede9fe}
+.mood-body.theme-bunny .mood-torso,.mood-body.theme-bunny .mood-arm,.mood-body.theme-bunny .mood-leg{background:#f9a8d4}
+.mood-body.theme-bunny .mood-head{background:#fce7f3}
+.mood-body.theme-fox .mood-torso,.mood-body.theme-fox .mood-arm,.mood-body.theme-fox .mood-leg{background:#fca5a5}
+.mood-body.theme-fox .mood-head{background:#fef2f2}
+.mood-body.theme-sloth .mood-torso,.mood-body.theme-sloth .mood-arm,.mood-body.theme-sloth .mood-leg{background:#6ee7b7}
+.mood-body.theme-sloth .mood-head{background:#d1fae5}
+
+/* Cloud bubble */
+.mood-cloud{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);background:var(--surface);border:1.5px solid var(--border2);border-radius:16px;padding:8px 14px;max-width:180px;box-shadow:var(--shadow-md);animation:moodCloudIn .4s ease;white-space:normal}
+.mood-cloud span{color:var(--text)}
+.mood-cloud::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid var(--surface)}
+.mood-cloud span{font-size:12px;line-height:1.5;color:#555}
+@keyframes moodCloudIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+.mood-name{font-size:10px;color:var(--text3);margin-top:2px;font-weight:500}
+.mood-pick-btn{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);z-index:2}
+.mood-pick-btn:hover{background:var(--accent-light);border-color:var(--accent)}
+
+/* Chat panel */
+.mood-chat{position:fixed;right:20px;bottom:110px;z-index:501;width:260px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);backdrop-filter:blur(20px);overflow:hidden;display:flex;flex-direction:column;max-height:360px}
+.mood-chat-hdr{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--text);background:var(--surface2)}
+.mood-btn{background:none;border:none;font-size:13px;cursor:pointer;color:var(--text3);padding:2px 4px;border-radius:4px}
+.mood-btn:hover{background:var(--surface3);color:var(--text)}
+.mood-chat-msgs{flex:1;overflow-y:auto;padding:8px;max-height:140px;display:flex;flex-direction:column;gap:6px;font-size:12px}
+.mood-chat-msgs .doll-msg-text{background:var(--surface3);padding:5px 10px;border-radius:10px 10px 10px 3px;line-height:1.4;color:var(--text2);max-width:90%;font-size:11px}
+.mood-chat-msgs .doll-msg.user .doll-msg-text{background:var(--accent-grad);color:#fff;border-radius:10px 10px 3px 10px}
+.mood-chat-quick{display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px;border-top:1px solid var(--border)}
+.mood-chat-quick button{padding:3px 7px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:10px;cursor:pointer;font-family:inherit}
+.mood-chat-quick button:hover{background:var(--accent-light);border-color:var(--accent)}
+.mood-chat-input{display:flex;gap:4px;padding:6px 8px;border-top:1px solid var(--border)}
+.mood-chat-input input{flex:1;border:1px solid var(--border2);border-radius:12px;padding:4px 10px;font-size:11px;outline:none;font-family:inherit;background:var(--surface2);color:var(--text)}
+.mood-chat-input input:focus{border-color:var(--accent)}
+.mood-chat-input button{width:28px;height:28px;border-radius:50%;border:none;background:var(--accent-grad);color:#fff;cursor:pointer;font-size:12px;flex-shrink:0}
+
+/* Picker */
+.mood-picker-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:99999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.mood-picker{background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw;box-shadow:var(--shadow-lg);text-align:center;backdrop-filter:blur(24px);border:1px solid var(--glass-border)}
+.mood-picker h3{font-size:16px;color:var(--text);margin-bottom:14px}
+.mood-picker-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.mood-picker-card{padding:12px 8px;border:2px solid var(--border2);border-radius:var(--radius);cursor:pointer;text-align:center;width:90px;transition:all .2s;background:var(--surface2)}
+.mood-picker-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.mood-picker-card.selected{border-color:var(--accent);background:var(--accent-light)}
+.mood-picker-card .mp-emoji{font-size:32px;display:block}
+.mood-picker-card .mp-name{font-size:11px;font-weight:600;color:var(--text)}
+
 /* ── Scrollbar ── */
 .chat-messages::-webkit-scrollbar{width:5px}
 .chat-messages::-webkit-scrollbar-track{background:transparent}
@@ -560,6 +678,9 @@ body{
   .db-stats{flex-wrap:wrap}
   .db-stat{min-width:55px}
   .auth-panel{padding:24px 20px}
+  .auth-hero{flex-direction:column;gap:24px}
+  .auth-hero-left h1{font-size:32px}
+  .auth-hero-left{text-align:center}
 }
 
 /* ── Misc ── */
@@ -570,3 +691,10 @@ body{
 .eval-actions{display:flex;gap:6px;margin-top:6px}
 .eval-keep-btn{padding:5px 14px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);border-radius:var(--radius-sm);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
 .eval-keep-btn:hover{background:var(--accent-light);color:var(--accent2)}
+
+/* Mini lang toggle */
+.lang-mini{display:inline-flex;align-items:center;gap:1px;opacity:0.35;transition:opacity .3s}
+.lang-mini:hover{opacity:0.8}
+.lang-mini-btn{font-size:9px;color:var(--text4);cursor:pointer;padding:1px 3px}
+.lang-mini-btn.active{color:var(--text2);font-weight:600}
+.lang-mini-sep{font-size:9px;color:var(--text4)}

@@ -63,8 +63,23 @@ def login():
     data = request.get_json() or {}
     email = _safe_str(data.get("email")).strip().lower()
     password = _safe_str(data.get("password", ""))
+
     if not email or not password:
         return jsonify({"success": False, "error": "请输入邮箱和密码"}), 400
+
+    # Demo账号自动修复：如果不存在则自动创建
+    if email == "demo@trademaster.com" and password == "demo2024":
+        users = _load_users()
+        if email not in users:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            users[email] = {
+                "email": email, "phone": "13800138001",
+                "company": "深圳声海科技有限公司", "product": "bluetooth earphone",
+                "identity": "seller",
+                "password_hash": _hash_password(password),
+                "registered_at": now, "last_login": now
+            }
+            _save_users(users)
 
     user = authenticate_user(email, password)
     if not user:

@@ -63,10 +63,11 @@ from user_service import (
 )
 
 # ============================================================
-# 系统提示词 + 工具定义
+# 系统提示词 + 工具定义 + 多Agent
 # ============================================================
 from tools import TOOL_FUNCTIONS, TOOL_DESCRIPTIONS
 from prompt_service import build_system_prompt
+from agents import AGENTS, detect_intent, get_agent_tools, MULTI_AGENT_PROMPT
 
 # ============================================================
 # 工具调用
@@ -323,19 +324,26 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
     ue = user_email or ""
     messages = _sanitize_messages(db.get_messages(ue, sid))
     if not messages:
-        system_content = build_system_prompt(user_email)
+        system_content = build_system_prompt(user_email, sid)
+        # 附加多Agent系统提示
+        system_content = MULTI_AGENT_PROMPT + "\n\n" + system_content
         db.set_system_prompt(ue, sid, system_content)
         messages = [{"role": "system", "content": system_content}]
 
     messages.append({"role": "user", "content": user_input})
     db.append_message(ue, sid, "user", user_input)
 
+    # 多Agent: 检测意图，选择工具子集
+    intent_agent = detect_intent(user_input) if use_tools else "coordinator"
+    agent_tools = get_agent_tools(intent_agent) if use_tools else None
+    agent_info = AGENTS.get(intent_agent, AGENTS["coordinator"])
+
     iteration = 0
     tool_calls_log = []
 
     while iteration < MAX_ITERATIONS:
         iteration += 1
-        response = call_synscale(messages, tools=TOOL_DESCRIPTIONS if use_tools else None)
+        response = call_synscale(messages, tools=agent_tools if use_tools else None)
         if "error" in response:
             error_msg = f"抱歉，发生了错误：{response.get('message', 'Unknown error')}"
             messages.append({"role": "assistant", "content": error_msg})
@@ -371,7 +379,8 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
         else:
             messages.append({"role": "assistant", "content": assistant_content})
             db.append_message(ue, sid, "assistant", assistant_content)
-            return {"reply": assistant_content, "tool_calls": tool_calls_log}
+            return {"reply": assistant_content, "tool_calls": tool_calls_log,
+                    "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
     timeout_msg = "抱歉，处理超时，请简化您的问题后重试"
     messages.append({"role": "assistant", "content": timeout_msg})
@@ -383,22 +392,29 @@ def run_agent_stream(user_input, session_id="default", use_tools=True, user_emai
     ue = user_email or ""
     messages = _sanitize_messages(db.get_messages(ue, sid))
     if not messages:
-        system_content = build_system_prompt(user_email)
+        system_content = build_system_prompt(user_email, sid)
+        system_content = MULTI_AGENT_PROMPT + "\n\n" + system_content
         db.set_system_prompt(ue, sid, system_content)
         messages = [{"role": "system", "content": system_content}]
     messages.append({"role": "user", "content": user_input})
     db.append_message(ue, sid, "user", user_input)
 
+    # 多Agent: 检测意图
+    intent_agent = detect_intent(user_input) if use_tools else "coordinator"
+    agent_tools = get_agent_tools(intent_agent) if use_tools else None
+    agent_info = AGENTS.get(intent_agent, AGENTS["coordinator"])
+
     iteration = 0
     total_tool_count = 0
-    yield {"type": "thinking", "message": "正在理解您的问题..."}
+    yield {"type": "agent", "agent": f"{agent_info['emoji']} {agent_info['name']}",
+           "message": f"{agent_info['emoji']} {agent_info['name']} 正在处理..."}
 
     while iteration < MAX_ITERATIONS:
         iteration += 1
         full_content = ""
         tool_call_chunks = {}
 
-        for delta in call_synscale_stream(messages, tools=TOOL_DESCRIPTIONS if use_tools else None):
+        for delta in call_synscale_stream(messages, tools=agent_tools if use_tools else None):
             if "error" in delta:
                 yield {"type": "error", "message": delta.get("message", "Unknown error")}
                 return

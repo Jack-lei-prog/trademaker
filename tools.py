@@ -102,25 +102,28 @@ def search_buyers(keyword: str) -> str:
         })
 
     # Agent 需要基于此结果 + 自身知识推荐买家
+    # 构建可操作的买家联系路径
+    keyword_encoded = keyword.replace(" ", "%20")
+    alibaba_rfq_url = f"https://www.alibaba.com/trade/search?spm=a2700.galleryofferlist.rfq_search&IndexArea=rfq_en&SearchText={keyword_encoded}"
+    linkedin_url = f"https://www.linkedin.com/search/results/people/?keywords={keyword_encoded}%20buyer%20OR%20purchasing%20OR%20sourcing"
+    google_url = f"https://www.google.com/search?q={keyword_encoded}+importer+OR+distributor+OR+wholesaler+email"
+
     base_note = (
-        f"基于数据库搜索结果，按以下优先级列出买家：\n"
-        f"1) 先列出 structured_results 中匹配到的公司，补全已有字段\n"
-        f"2) 再补充推荐与 '{keyword}' 相关的全球买家/进口商/分销商\n"
-        f"3) 知名大企业（IKEA/Walmart/Amazon/Home Depot等）→ 给供应商注册URL，不给推测邮箱\n"
-        f"4) 中小公司 → 可推测邮箱但必须标注 ⚠️未验证，建议用户用 Hunter.io 等工具验证\n"
-        f"5) 补充 LinkedIn搜索建议 + B2B平台RFQ建议 + 行业展会建议（具体到展会名称）\n"
-        f"每家格式：序号. 公司名 + 国旗 + 网站 + 联系邮箱（标注验证状态） + 采购类型 + 推荐理由\n"
-        f"⚠️ 序号必须从1连续递增到N，**每条之间用单个换行（不是空行）分隔**，禁止中间重置编号。\n"
-        f"格式示例：\n"
-        f"1. 公司A 🇺🇸 — site.com | email | 进口商 | 推荐理由\n"
-        f"2. 公司B 🇩🇪 — site.de | email | 分销商 | 推荐理由\n"
-        f"3. 公司C 🇯🇵 — site.jp | email | 批发商 | 推荐理由\n"
-        f"（注意每行之间没有空行！这样前端才会正确显示连续编号）"
-    )
-    alibaba_note = (
-        "用户提到了1688或阿里巴巴国际站。重点推荐在 Alibaba.com 上活跃采购的真实买家/进口商。"
-        "建议用户同时在 Alibaba.com → RFQ Market 搜索 '{keyword}' 查看最新的真实采购需求。"
-        "格式同上，优先推荐有Alibaba交易记录的买家。"
+        f"数据库匹配结果有限（结构化为0条）。你必须提供可操作的替代联系路径，而非编造邮箱。\n\n"
+        f"## 产品: {keyword}\n\n"
+        f"### 可选路径（每条都给具体链接）\n"
+        f"1. 🛒 Alibaba RFQ: {alibaba_rfq_url}\n"
+        f"2. 💼 LinkedIn搜索: {linkedin_url}\n"
+        f"3. 🔍 Google搜索: {google_url}\n"
+        f"4. 📅 展会采购商名录 → 调用 search_trade_knowledge 工具查询相关展会\n\n"
+        f"### 补充推荐（基于行业知识）\n"
+        f"根据你的行业知识，推荐3-5家真实的全球买家/进口商/分销商：\n"
+        f"- 每家提供：公司名（真实存在）+ 国家 + 网站 + 采购类型 + 为何相关\n"
+        f"- 知名大企业 → 给供应商注册URL\n"
+        f"- 中小公司 → 给出 LinkedIn 搜索链接（搜索\"公司名 procurement\"）\n"
+        f"- 如果无法验证邮箱 → 明确说\"无公开邮箱，建议通过LinkedIn联系其采购经理\"\n"
+        f"- 禁止编造邮箱！宁缺毋滥！\n\n"
+        f"格式：序号. 公司名 🇺🇸 — site.com | 采购类型 | 联系途径（LinkedIn/Alibaba/展会/供应商门户）"
     )
 
     return json.dumps({
@@ -130,7 +133,6 @@ def search_buyers(keyword: str) -> str:
         "structured_results": buyers,
         "search_terms_used": trade_terms[:5],
         "note": base_note,
-        "alibaba_note": alibaba_note,
     }, ensure_ascii=False, indent=2)
 
 
@@ -600,13 +602,18 @@ def search_trade_knowledge(query: str) -> str:
                             ensure_ascii=False, indent=2)
 
     result = search_knowledge(query, top_k=5)
+    # 附加参展商搜索链接
+    from knowledge.tradeshows import get_exhibitor_search_urls
+    exhibitor_links = get_exhibitor_search_urls(query)
+
     return json.dumps({
         "success": True,
         "query": query,
         "type": "知识库RAG检索",
         "tradeshows": result["tradeshows"][:3],
         "certifications": result["certifications"][:3],
-        "note": "基于TF-IDF语义匹配的知识库检索结果。用于补充专业知识、展会信息和认证要求。"
+        "exhibitor_search": exhibitor_links,
+        "note": "基于TF-IDF语义匹配的知识库检索结果。含展会参展商名录+Alibaba RFQ+LinkedIn搜索链接。"
     }, ensure_ascii=False, indent=2)
 
 

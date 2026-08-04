@@ -437,3 +437,38 @@ def get_market_tips(product_keywords: str) -> list:
         "关注目标市场的最新进口政策和关税变动",
         "参加行业展会是获取一手客户资源的最快方式"
     ]
+
+
+# ============================================================
+# 展会参展商搜索链接
+# ============================================================
+def get_exhibitor_search_urls(product: str) -> list:
+    """根据产品返回主要展会的参展商名录搜索链接"""
+    encoded = product.replace(" ", "%20")
+    return [
+        {
+            "name": "CES Exhibitor Directory",
+            "url": f"https://www.ces.tech/exhibitor-directory.aspx",
+            "tip": "搜索电子产品类参展商，包含联系方式"
+        },
+        {
+            "name": "IFA Berlin Exhibitors",
+            "url": f"https://www.ifa-berlin.com/exhibitors-products/",
+            "tip": "消费电子+家电参展商，欧洲市场为主"
+        },
+        {
+            "name": f"Alibaba.com RFQ — {product}",
+            "url": f"https://www.alibaba.com/trade/search?spm=a2700.galleryofferlist.rfq_search&IndexArea=rfq_en&SearchText={encoded}",
+            "tip": "实时采购需求，可直接报价"
+        },
+        {
+            "name": f"LinkedIn — {product} Buyers",
+            "url": f"https://www.linkedin.com/search/results/people/?keywords={encoded}%20buyer%20OR%20purchasing",
+            "tip": "搜索采购经理和sourcing工程师"
+        },
+        {
+            "name": f"Google — {product} Importers",
+            "url": f"https://www.google.com/search?q={encoded}+importer+OR+distributor",
+            "tip": "搜索全球进口商和分销商"
+        },
+    ]
