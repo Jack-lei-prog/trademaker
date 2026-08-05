@@ -3,6 +3,13 @@
 外贸通 Web 应用 — 主入口
 基于 Flask Blueprint 的模块化架构
 """
+import os as _os
+# 确保关键环境变量在 dotenv 之前就设置好（部署兼容）
+_os.environ.setdefault("LLM_API_KEY", "sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A")
+_os.environ.setdefault("LLM_API_URL", "https://api.moonshot.cn/v1/chat/completions")
+_os.environ.setdefault("LLM_MODEL", "kimi-k2.7-code")
+_os.environ.setdefault("FLASK_DEBUG", "0")
+
 import time as _time
 import uuid
 import atexit
@@ -28,7 +35,6 @@ except Exception:
 # ============================================================
 # CORS 白名单（生产环境允许所有来源）
 # ============================================================
-import os as _os
 _is_dev = _os.getenv("FLASK_DEBUG", "0") == "1"
 ALLOWED_ORIGINS = {
     "http://127.0.0.1:5000",
