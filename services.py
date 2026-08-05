@@ -23,13 +23,18 @@ http_session = requests.Session()
 http_session.trust_env = False  # 绕过系统代理直连API
 MAX_ITERATIONS = 3
 
+# 硬编码默认 API 配置（部署时无需 .env 文件）
+_DEFAULT_API_KEY = "sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A"
+_DEFAULT_API_URL = "https://api.moonshot.cn/v1/chat/completions"
+_DEFAULT_API_MODEL = "kimi-k2.7-code"
+
 def _build_providers():
-    """从环境变量构建 API 提供商列表"""
+    """从环境变量构建 API 提供商列表（回退到硬编码默认值）"""
     providers = []
-    # 主 API
-    key = os.getenv("LLM_API_KEY") or os.getenv("SYNSCALE_API_KEY")
-    url = os.getenv("LLM_API_URL") or "http://synscale.onesyn.ai/v1/chat/completions"
-    model = os.getenv("LLM_MODEL") or os.getenv("SYNSCALE_MODEL_NAME") or "deepseek-v4-pro"
+    # 主 API：优先环境变量，其次硬编码默认值
+    key = os.getenv("LLM_API_KEY") or os.getenv("SYNSCALE_API_KEY") or _DEFAULT_API_KEY
+    url = os.getenv("LLM_API_URL") or _DEFAULT_API_URL
+    model = os.getenv("LLM_MODEL") or os.getenv("SYNSCALE_MODEL_NAME") or _DEFAULT_API_MODEL
     if key:
         providers.append({"key": key, "url": url, "model": model, "name": "primary"})
     # 备用 API 1
