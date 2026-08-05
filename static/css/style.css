@@ -627,6 +627,7 @@ body{
 @keyframes pulse-btn{0%,100%{box-shadow:0 4px 14px rgba(255,107,53,0.3)}50%{box-shadow:0 4px 24px rgba(255,107,53,0.6)}}
 
 /* ── Context Actions Toolbar ── */
+.btn-sm-acq{background:linear-gradient(135deg,#ff6b35,#ff8c42)!important;color:#fff!important;font-weight:700!important;font-size:11px!important;animation:pulse-btn 2s infinite}
 .context-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 .context-action-btn{
   background: var(--surface2); border: 1px solid var(--border2);
