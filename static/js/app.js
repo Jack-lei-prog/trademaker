@@ -2621,3 +2621,209 @@ function showFollowupHint(container, toEmail) {
     hint.innerHTML = '📅 已自动加入跟进队列 — 若3天后未收到回复，系统将提醒你发送跟进邮件给 <b>' + toEmail + '</b>';
 }
 
+// ═══════════════════════════════════════════
+// 一键获客
+// ═══════════════════════════════════════════
+var acqBuyerData = [];
+
+function openAcquisitionPanel() {
+    document.getElementById('acqOverlay').classList.add('show');
+    document.getElementById('acqMsg').className = 'acq-msg';
+    document.getElementById('acqResults').style.display = 'none';
+    document.getElementById('acqProgress').style.display = 'none';
+    document.getElementById('acqKeyword').focus();
+    // 预填用户产品
+    if (window._userInfo && window._userInfo.product) {
+        document.getElementById('acqKeyword').value = window._userInfo.product || '';
+    }
+}
+
+function closeAcquisitionPanel() {
+    document.getElementById('acqOverlay').classList.remove('show');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Acquisition panel close buttons
+    var btnClose = document.getElementById('btnAcqClose');
+    if (btnClose) btnClose.onclick = closeAcquisitionPanel;
+    var btnCloseR = document.getElementById('btnAcqCloseResults');
+    if (btnCloseR) btnCloseR.onclick = closeAcquisitionPanel;
+    // Click overlay to close
+    var acqOverlay = document.getElementById('acqOverlay');
+    if (acqOverlay) {
+        acqOverlay.addEventListener('click', function(e) {
+            if (e.target === acqOverlay) closeAcquisitionPanel();
+        });
+    }
+
+    // Go button
+    var btnGo = document.getElementById('btnAcqGo');
+    if (btnGo) btnGo.onclick = runAcquisition;
+
+    // Export button
+    var btnExport = document.getElementById('btnAcqExport');
+    if (btnExport) btnExport.onclick = exportAcqCSV;
+
+    // Enter key triggers search
+    document.getElementById('acqKeyword').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') runAcquisition();
+    });
+});
+
+function runAcquisition() {
+    var keyword = document.getElementById('acqKeyword').value.trim();
+    if (!keyword) {
+        showAcqMsg('请输入产品关键词', 'error');
+        return;
+    }
+
+    var market = document.getElementById('acqMarket').value.trim();
+    var count = parseInt(document.getElementById('acqCount').value);
+
+    var btn = document.getElementById('btnAcqGo');
+    btn.disabled = true;
+    btn.textContent = '搜索中...';
+
+    document.getElementById('acqMsg').className = 'acq-msg';
+    document.getElementById('acqResults').style.display = 'none';
+    var progress = document.getElementById('acqProgress');
+    progress.style.display = 'flex';
+    document.getElementById('acqProgressText').textContent = '正在搜索 ' + keyword + ' 的买家...';
+
+    var userEmail = (window._userInfo && window._userInfo.email) || 'demo@trademaster.com';
+
+    fetch('/api/customer-acquisition', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_email: userEmail,
+            keyword: keyword,
+            target_market: market,
+            max_results: count
+        })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+        btn.disabled = false;
+        btn.textContent = '开始获客';
+        progress.style.display = 'none';
+
+        if (!d.success) {
+            showAcqMsg(d.error || '获客失败，请重试', 'error');
+            return;
+        }
+
+        acqBuyerData = d.buyers || [];
+        document.getElementById('acqResultsTitle').textContent =
+            '找到 ' + d.total_found + ' 家买家，已保存 ' + d.saved_to_contacts + ' 家到客户跟进';
+
+        var tbody = document.getElementById('acqTableBody');
+        tbody.innerHTML = '';
+        (d.buyers || []).forEach(function(b, i) {
+            var tr = document.createElement('tr');
+            var emailHtml = b.email && b.email.includes('@')
+                ? '<span class="acq-email">' + escapeHtml(b.email) + '</span>'
+                : '<span class="acq-no-email">无邮箱（建议LinkedIn联系）</span>';
+
+            var draftHtml = b.draft_email
+                ? '<div class="acq-draft">' + escapeHtml(b.draft_email.substring(0, 250)) + (b.draft_email.length > 250 ? '...' : '') + '</div>'
+                : '<span class="acq-no-email">可手动编写</span>';
+
+            var copyBtn = b.draft_email
+                ? '<button class="acq-btn-copy" onclick="copyAcqDraft(' + i + ', this)">复制</button>'
+                : '';
+
+            tr.innerHTML = '<td><b>' + escapeHtml(b.company_name) + '</b></td>' +
+                '<td>' + escapeHtml(b.country || '-') + '</td>' +
+                '<td>' + (b.website ? '<a href="' + (b.website.startsWith('http') ? b.website : 'https://' + b.website) + '" target="_blank" style="color:var(--accent)">' + escapeHtml(b.website.substring(0,25)) + '</a>' : '-') + '</td>' +
+                '<td>' + emailHtml + '</td>' +
+                '<td>' + draftHtml + '</td>' +
+                '<td style="white-space:nowrap">' + copyBtn + '<button class="acq-btn-copy" onclick="saveSingleContact(' + i + ',this)" style="margin-left:2px">存客户</button></td>';
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('acqResults').style.display = 'block';
+        showAcqMsg('获客成功！ ' + d.saved_to_contacts + ' 家客户已自动保存到客户跟进系统', 'success');
+    }).catch(function(e) {
+        btn.disabled = false;
+        btn.textContent = '开始获客';
+        progress.style.display = 'none';
+        showAcqMsg('网络错误：' + e, 'error');
+    });
+}
+
+function showAcqMsg(text, type) {
+    var el = document.getElementById('acqMsg');
+    el.className = 'acq-msg ' + (type || '');
+    el.textContent = text;
+    el.style.display = 'block';
+    setTimeout(function() { el.className = 'acq-msg'; el.style.display = 'none'; }, 8000);
+}
+
+function copyAcqDraft(i, btn) {
+    var text = acqBuyerData[i] && acqBuyerData[i].draft_email;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(function() {
+        btn.textContent = '已复制';
+        btn.classList.add('copied');
+        setTimeout(function() { btn.textContent = '复制'; btn.classList.remove('copied'); }, 2000);
+    });
+}
+
+function saveSingleContact(i, btn) {
+    var b = acqBuyerData[i];
+    if (!b) return;
+    var orig = btn.textContent;
+    btn.textContent = '保存中...';
+    btn.disabled = true;
+
+    var userEmail = (window._userInfo && window._userInfo.email) || 'demo@trademaster.com';
+
+    fetch('/api/contacts/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_email: userEmail,
+            company_name: b.company_name,
+            email: b.email || '',
+            website: b.website || '',
+            country: b.country || '',
+            product_interest: document.getElementById('acqKeyword').value || '',
+            source: '一键获客',
+            notes: b.draft_email ? b.draft_email.substring(0, 200) : ''
+        })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            btn.textContent = '已保存';
+            btn.classList.add('copied');
+        } else {
+            btn.textContent = orig;
+            btn.disabled = false;
+            alert('保存失败：' + (d.error || '未知错误'));
+        }
+    }).catch(function(e) {
+        btn.textContent = orig;
+        btn.disabled = false;
+    });
+}
+
+function exportAcqCSV() {
+    if (!acqBuyerData.length) return;
+    var csv = '﻿公司名,国家,网站,邮箱,开发信摘要\n';
+    acqBuyerData.forEach(function(b) {
+        csv += csvField(b.company_name) + ',' + csvField(b.country) + ',' + csvField(b.website) + ',' + csvField(b.email) + ',' + csvField((b.draft_email || '').substring(0, 150).replace(/\n/g, ' ')) + '\n';
+    });
+    var blob = new Blob([csv], {type: 'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'TradeMaster客户线索_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function csvField(val) {
+    val = (val || '').replace(/"/g, '""');
+    return '"' + val + '"';
+}
+

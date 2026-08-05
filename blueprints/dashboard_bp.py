@@ -138,3 +138,112 @@ def api_dashboard():
             "pending_email_list": [{"to": e.get("to",""), "subject": e.get("subject",""), "days_ago": e.get("days_ago",0)} for e in pending_emails[:5]],
         }
     })
+
+
+@dashboard_bp.route("/api/customer-acquisition", methods=["POST"])
+def api_customer_acquisition():
+    """一键获客工作流：搜索买家 → 生成开发信 → 保存到联系人"""
+    import json as _json
+    import concurrent.futures
+    import time as _time
+
+    data = request.get_json() or {}
+    user_email = _safe_str(data.get("user_email")).strip().lower()
+    keyword = _safe_str(data.get("keyword")).strip()
+    target_market = _safe_str(data.get("target_market")).strip()  # 目标国家，可选
+    max_results = data.get("max_results", 10)
+
+    if not user_email:
+        return jsonify({"success": False, "error": "请先登录"}), 400
+    if not keyword:
+        return jsonify({"success": False, "error": "请输入产品关键词"}), 400
+    if max_results < 1 or max_results > 30:
+        max_results = 10
+
+    # 获取用户产品信息
+    user = get_user(user_email)
+    product = user.get("product", keyword) if user else keyword
+
+    # 阶段1: 搜索买家
+    from tools import search_buyers
+    raw = search_buyers(keyword)
+    try:
+        parsed = _json.loads(raw)
+    except Exception:
+        parsed = {"success": False, "structured_results": []}
+
+    structured = parsed.get("structured_results", [])
+    note = parsed.get("note", "")
+
+    # 如果 API 没返回结果，用 LLM 生成推荐
+    if not structured:
+        import hashlib
+        structured_div = note  # 包含 LLM 推荐信息的文本
+    else:
+        structured_div = None
+
+    # 阶段2: 并行生成开发信 + 保存联系人
+    saved_contacts = []
+    drafts = []
+    draft_errors = []
+
+    def process_buyer(buyer):
+        comp_name = buyer.get("company_name", "Unknown")
+        country = buyer.get("country", "")
+        website = buyer.get("website", "")
+        email = buyer.get("email", "")
+        desc = buyer.get("description", "")
+
+        result = {
+            "company_name": comp_name,
+            "country": country,
+            "website": website,
+            "email": email,
+            "description": desc,
+            "draft_email": "",
+            "contact_id": None,
+        }
+
+        # 生成开发信（有邮箱才生成）
+        if email and "@" in email:
+            from tools import draft_email
+            try:
+                company_info = f"{comp_name} ({country}), website: {website}, {desc}"[:200]
+                draft = draft_email(company_info, product)
+                result["draft_email"] = draft[:500] if draft else ""
+            except Exception as e:
+                draft_errors.append(f"{comp_name}: {str(e)[:100]}")
+                result["draft_email"] = ""
+
+        # 保存到联系人
+        try:
+            contact_id = db.add_contact(
+                user_email=user_email,
+                company_name=comp_name,
+                email=email,
+                website=website,
+                country=country,
+                product_interest=keyword,
+                source=f"AI获客搜索-{keyword}",
+                notes=f"自动通过{keyword}搜索获得",
+            )
+            result["contact_id"] = contact_id
+            saved_contacts.append(result)
+        except Exception as e:
+            result["contact_id"] = None
+
+        drafts.append(result)
+        return result
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(process_buyer, b) for b in structured[:max_results]]
+        concurrent.futures.wait(futures, timeout=30)
+
+    return jsonify({
+        "success": True,
+        "keyword": keyword,
+        "total_found": len(structured),
+        "saved_to_contacts": len(saved_contacts),
+        "buyers": drafts,
+        "raw_note": note[:3000] if not structured else "",
+    })

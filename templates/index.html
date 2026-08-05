@@ -108,6 +108,71 @@
   </div>
 </div>
 
+<!-- Customer Acquisition Panel -->
+<div class="acq-overlay" id="acqOverlay">
+  <div class="acq-modal">
+    <h3>&#x1f680; 一键获客</h3>
+    <p class="acq-subtitle">输入产品关键词，AI 自动搜索买家 + 生成开发信 + 保存客户</p>
+
+    <label>产品关键词 <span style="color:var(--red)">*</span></label>
+    <input type="text" id="acqKeyword" placeholder="例如：bluetooth earphone、LED灯具、solar panel">
+
+    <div class="acq-row">
+      <div style="flex:1">
+        <label>目标市场（可选）</label>
+        <input type="text" id="acqMarket" placeholder="例如：USA、Europe、Japan">
+      </div>
+      <div style="width:100px">
+        <label>数量</label>
+        <select id="acqCount">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="acq-msg" id="acqMsg"></div>
+    <div class="acq-actions">
+      <button class="acq-btn-go" id="btnAcqGo">&#x1f50d; 开始获客</button>
+      <button class="acq-btn-close" id="btnAcqClose">取消</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="acq-progress" id="acqProgress" style="display:none">
+      <div class="acq-spinner"></div>
+      <span id="acqProgressText">正在搜索买家...</span>
+    </div>
+
+    <!-- Results -->
+    <div class="acq-results" id="acqResults" style="display:none">
+      <div class="acq-results-header">
+        <span id="acqResultsTitle"></span>
+        <div>
+          <button class="acq-btn-export" id="btnAcqExport">&#x1f4e5; 导出CSV</button>
+          <button class="acq-btn-close-sm" id="btnAcqCloseResults">&#x2715;</button>
+        </div>
+      </div>
+      <div class="acq-table-wrap">
+        <table class="acq-table">
+          <thead>
+            <tr>
+              <th>公司名</th>
+              <th>国家</th>
+              <th>网站</th>
+              <th>邮箱</th>
+              <th style="width:35%">开发信</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="acqTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Left Sidebar -->
 <div class="sidebar" id="sidebar">
   <div class="sidebar-header">
@@ -188,6 +253,7 @@
         <p>AI外贸全流程智能体平台</p>
         <p style="font-size:12px;color:var(--text4)">买家搜索 &nbsp;·&nbsp; 开发信撰写 &nbsp;·&nbsp; 展会情报 &nbsp;·&nbsp; 邮件追踪 &nbsp;·&nbsp; 客户管理</p>
         <div class="quick-actions">
+          <button class="quick-btn quick-btn-hero" onclick="openAcquisitionPanel()">&#x1f680; 一键获客</button>
           <button class="quick-btn" data-action="帮我搜索电子产品相关的买家">&#x1f50d; 搜索买家</button>
           <button class="quick-btn" data-action="美元兑人民币的汇率是多少？">&#x1f4b1; 查询汇率</button>
           <button class="quick-btn" data-action="帮我为便携式加湿器生成商品描述">&#x1f4dd; 商品描述</button>
