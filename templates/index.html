@@ -85,8 +85,25 @@
       <button class="smtp-btn-test" id="btnSmtpTest">&#x1f4e8; 发送测试邮件</button>
       <button class="smtp-btn-close" id="btnSmtpClose">关闭</button>
     </div>
-    <div class="smtp-hint" style="margin-top:12px;text-align:center">
-      QQ邮箱授权码获取：设置 → 账户 → POP3/SMTP服务 → 开启 → 获取授权码
+    <div class="smtp-help" style="margin-top:14px;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;text-align:left">
+      <details id="smtpHelpDetails">
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--accent)">📖 QQ邮箱SMTP授权码获取教程（点击展开）</summary>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.8">
+          <p style="margin:0"><b>第1步：</b>登录 <code>mail.qq.com</code>，点击页面顶部 <b>「设置」</b></p>
+          <p style="margin:4px 0"><b>第2步：</b>点击 <b>「账户」</b> 标签页</p>
+          <p style="margin:4px 0"><b>第3步：</b>往下翻找到 <b>「POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV服务」</b> 区域</p>
+          <p style="margin:4px 0"><b>第4步：</b>点击 <b>「POP3/SMTP服务」</b> 右侧的 <b>「开启」</b> 按钮</p>
+          <p style="margin:4px 0"><b>第5步：</b>按提示发送短信验证后，会显示一段 <b style="color:var(--green)">16位授权码</b>（类似：<code>abcdefghijklmnop</code>）</p>
+          <p style="margin:4px 0"><b>第6步：</b>复制这串授权码，粘贴到上面的 <b>「授权码」</b> 输入框</p>
+          <hr style="margin:8px 0;border-color:var(--border2)">
+          <p style="margin:0;color:var(--text4)">
+            📌 <b>重要提示：</b><br>
+            • 授权码 <b>不是</b> QQ密码，必须用上面步骤获取的16位码<br>
+            • SMTP服务器自动为 <b>smtp.qq.com:587</b>（已内置，无需修改）<br>
+            • 新注册QQ号需先使用邮箱收发邮件一段时间（约2-4周）才能开启SMTP
+          </p>
+        </div>
+      </details>
     </div>
   </div>
 </div>
