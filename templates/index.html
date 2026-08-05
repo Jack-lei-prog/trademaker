@@ -203,11 +203,6 @@
   </div>
   <div class="mood-body" id="moodBody">
     <div class="mood-head" id="moodHead">🧸</div>
-    <div class="mood-torso"></div>
-    <div class="mood-arm mood-arm-l"></div>
-    <div class="mood-arm mood-arm-r"></div>
-    <div class="mood-leg mood-leg-l"></div>
-    <div class="mood-leg mood-leg-r"></div>
   </div>
   <div class="mood-name" id="moodName">乐乐熊</div>
 </div>
@@ -246,13 +241,13 @@
 </div>
 
 <script>
-// Theme toggle - runs immediately before any other JS
+// Theme - reliable toggle, runs before page render
 (function(){
     var saved = localStorage.getItem('tradeMasterTheme');
-    if (saved === 'dark') document.body.className = 'dark';
+    if (saved === 'dark') document.body.classList.add('dark');
     window.toggleTheme = function() {
-        document.body.classList.toggle('dark');
-        localStorage.setItem('tradeMasterTheme', document.body.classList.contains('dark') ? 'dark' : 'light');
+        var isDark = document.body.classList.toggle('dark');
+        localStorage.setItem('tradeMasterTheme', isDark ? 'dark' : 'light');
     };
 })();
 </script>

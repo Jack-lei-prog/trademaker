@@ -605,27 +605,16 @@ body{
 @keyframes moodBounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-15px)}60%{transform:translateY(-5px)}}
 
 /* Doll body */
-.mood-body{position:relative;width:80px;height:100px;margin:0 auto}
-.mood-head{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:2;cursor:pointer;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,0.1)}
-.mood-torso{width:40px;height:34px;border-radius:14px;position:absolute;top:38px;left:50%;transform:translateX(-50%);z-index:1}
-.mood-arm{width:16px;height:24px;border-radius:8px;position:absolute;top:40px;z-index:0}
-.mood-arm-l{left:2px;transform:rotate(15deg)}
-.mood-arm-r{right:2px;transform:rotate(-15deg)}
-.mood-leg{width:14px;height:16px;border-radius:7px;position:absolute;top:68px;z-index:0}
-.mood-leg-l{left:18px}
-.mood-leg-r{right:18px}
+.mood-body{width:72px;height:72px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,0.15),inset 0 -4px 8px rgba(0,0,0,0.06)}
+.mood-head{font-size:38px;cursor:pointer;line-height:1;transition:transform .2s}
+.mood-head:hover{transform:scale(1.1)}
 
-/* Doll color themes */
-.mood-body.theme-bear .mood-torso,.mood-body.theme-bear .mood-arm,.mood-body.theme-bear .mood-leg{background:#fbbf24}
-.mood-body.theme-bear .mood-head{background:#fef3c7}
-.mood-body.theme-cat .mood-torso,.mood-body.theme-cat .mood-arm,.mood-body.theme-cat .mood-leg{background:#a78bfa}
-.mood-body.theme-cat .mood-head{background:#ede9fe}
-.mood-body.theme-bunny .mood-torso,.mood-body.theme-bunny .mood-arm,.mood-body.theme-bunny .mood-leg{background:#f9a8d4}
-.mood-body.theme-bunny .mood-head{background:#fce7f3}
-.mood-body.theme-fox .mood-torso,.mood-body.theme-fox .mood-arm,.mood-body.theme-fox .mood-leg{background:#fca5a5}
-.mood-body.theme-fox .mood-head{background:#fef2f2}
-.mood-body.theme-sloth .mood-torso,.mood-body.theme-sloth .mood-arm,.mood-body.theme-sloth .mood-leg{background:#6ee7b7}
-.mood-body.theme-sloth .mood-head{background:#d1fae5}
+/* Doll themes - colored ring backgrounds */
+.mood-body.theme-bear{background:radial-gradient(circle at 45% 40%,#fef3c7,#fbbf24,#d97706)}
+.mood-body.theme-cat{background:radial-gradient(circle at 45% 40%,#ede9fe,#a78bfa,#7c3aed)}
+.mood-body.theme-bunny{background:radial-gradient(circle at 45% 40%,#fce7f3,#f9a8d4,#ec4899)}
+.mood-body.theme-fox{background:radial-gradient(circle at 45% 40%,#fef2f2,#fca5a5,#ef4444)}
+.mood-body.theme-sloth{background:radial-gradient(circle at 45% 40%,#d1fae5,#6ee7b7,#10b981)}
 
 /* Cloud bubble */
 .mood-cloud{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);background:var(--surface);border:1.5px solid var(--border2);border-radius:16px;padding:8px 14px;max-width:180px;box-shadow:var(--shadow-md);animation:moodCloudIn .4s ease;white-space:normal}

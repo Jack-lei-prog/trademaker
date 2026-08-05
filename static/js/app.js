@@ -193,9 +193,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnExcelUpload').addEventListener('click', function(){ document.getElementById('excelInput').click(); });
     initSidebar();
     initDoll();
-    // Theme toggle
-    var savedTheme = localStorage.getItem('tradeMasterTheme');
-    if (savedTheme === 'dark') document.body.classList.add('dark');
     // Retry queue
     updateRetryBadge();
     updateApiStatus();  // 初始检查API状态
@@ -203,10 +200,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function(){ showRetryQueueMsg(); }, 1000);
         setTimeout(function(){ processRetryQueue(); }, 3000);
     }
-    document.getElementById('btnTheme').addEventListener('click', function(){
-        document.body.classList.toggle('dark');
-        localStorage.setItem('tradeMasterTheme', document.body.classList.contains('dark') ? 'dark' : 'light');
-    });
     document.getElementById('btnSmtpSettings').addEventListener('click', openSmtpSettings);
     document.getElementById('btnSmtpSave').addEventListener('click', saveSmtpSettings);
     document.getElementById('btnSmtpTest').addEventListener('click', testSmtpSettings);
@@ -2457,8 +2450,8 @@ function loadMoodPicker() {
         dolls.forEach(function(doll){
             var card = document.createElement('div');
             var selected = doll.id === moodDoll.id;
-            card.style.cssText = 'display:inline-block;padding:16px 10px;margin:6px;border:2px solid ' + (selected ? accentColor : borderColor) + ';border-radius:14px;cursor:pointer;text-align:center;width:110px;background:' + (selected ? accentBg : bgColor) + ';transition:all .2s';
-            card.innerHTML = '<span style=\"font-size:40px;display:block;margin-bottom:4px\">' + doll.emoji + '</span><span style=\"font-size:13px;font-weight:700;color:#1e293b\">' + doll.name + '</span>';
+            card.style.cssText = 'display:inline-block;padding:14px 8px;margin:4px;border:2px solid ' + (selected ? accentColor : borderColor) + ';border-radius:50%;cursor:pointer;text-align:center;width:80px;height:80px;background:' + (selected ? accentBg : bgColor) + ';transition:all .2s;display:flex;flex-direction:column;align-items:center;justify-content:center';
+            card.innerHTML = '<span style=\"font-size:32px;display:block\">' + doll.emoji + '</span><span style=\"font-size:10px;font-weight:700;color:#1e293b;margin-top:2px\">' + doll.name + '</span>';
 
             card.addEventListener('mouseenter', function(){ if(!this.classList.contains('selected')){this.style.borderColor=accentColor;this.style.transform='translateY(-2px)';} });
             card.addEventListener('mouseleave', function(){ if(!this.classList.contains('selected')){this.style.borderColor=borderColor;this.style.transform='none';} });
