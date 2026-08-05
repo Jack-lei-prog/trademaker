@@ -7,9 +7,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
-from dotenv import load_dotenv
-
-load_dotenv()
+# 注: .env 已在 app.py 入口处加载(override=True)
 
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.qq.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))

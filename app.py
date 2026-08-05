@@ -4,12 +4,6 @@
 基于 Flask Blueprint 的模块化架构
 """
 import os as _os
-# 部署兼容：dotenv 之前预设环境变量为占位值，确保应用不会因缺变量崩溃
-# 实际值通过 .env 文件或系统环境变量注入
-_os.environ.setdefault("LLM_API_KEY", "sk-your-api-key-here")
-_os.environ.setdefault("LLM_API_URL", "https://api.moonshot.cn/v1/chat/completions")
-_os.environ.setdefault("LLM_MODEL", "kimi-k2.7-code")
-_os.environ.setdefault("FLASK_DEBUG", "0")
 
 import time as _time
 import uuid
@@ -18,7 +12,12 @@ from flask import Flask, request, jsonify, g
 from dotenv import load_dotenv
 from logger import get_logger, log_request
 
-load_dotenv()
+# 从项目目录强制加载 .env（覆盖系统环境变量）
+_ENV_PATH = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".env")
+if _os.path.exists(_ENV_PATH):
+    load_dotenv(_ENV_PATH, override=True)
+else:
+    load_dotenv()
 
 app = Flask(__name__)
 log = get_logger()

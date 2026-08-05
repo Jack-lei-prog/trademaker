@@ -9,9 +9,7 @@ import requests
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from dotenv import load_dotenv
-
-load_dotenv()
+# 注: .env 已在 app.py 入口处加载(override=True)，此处不再重复
 
 # 异步线程池（最多 4 个并发 LLM 调用）
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="llm")

@@ -10,9 +10,7 @@ import json
 import os
 import re
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
+# 注: .env 已在 app.py 入口处加载(override=True)
 
 _eval_session = None
 
