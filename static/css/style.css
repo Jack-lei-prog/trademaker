@@ -271,6 +271,7 @@ body{
 /* Live-dot 呼吸灯 (Hub-inspired) */
 .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--green-bg);display:inline-block;animation:livePulse 2s ease-in-out infinite}
 .live-dot.offline{background:var(--red);box-shadow:0 0 0 4px var(--red-bg)}
+.eval-badge-header{font-size:9px;font-weight:700;margin-left:8px;padding:2px 8px;border-radius:10px;background:linear-gradient(135deg,#6c5ce7,#a855f7);color:#fff;vertical-align:middle;cursor:default;animation:livePulse 3s ease-in-out infinite}
 @keyframes livePulse{0%,100%{opacity:1;box-shadow:0 0 0 4px var(--green-bg)}50%{opacity:0.6;box-shadow:0 0 0 8px var(--green-bg)}}
 
 /* ── Auth Panel ── */
