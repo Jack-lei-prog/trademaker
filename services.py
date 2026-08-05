@@ -23,18 +23,13 @@ http_session = requests.Session()
 http_session.trust_env = False  # 绕过系统代理直连API
 MAX_ITERATIONS = 3
 
-# 硬编码默认 API 配置（部署时无需 .env 文件）
-_DEFAULT_API_KEY = "sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A"
-_DEFAULT_API_URL = "https://api.moonshot.cn/v1/chat/completions"
-_DEFAULT_API_MODEL = "kimi-k2.7-code"
-
 def _build_providers():
-    """从环境变量构建 API 提供商列表（回退到硬编码默认值）"""
+    """从环境变量构建 API 提供商列表"""
     providers = []
-    # 主 API：优先环境变量，其次硬编码默认值
-    key = os.getenv("LLM_API_KEY") or os.getenv("SYNSCALE_API_KEY") or _DEFAULT_API_KEY
-    url = os.getenv("LLM_API_URL") or _DEFAULT_API_URL
-    model = os.getenv("LLM_MODEL") or os.getenv("SYNSCALE_MODEL_NAME") or _DEFAULT_API_MODEL
+    # 主 API：从环境变量读取
+    key = os.getenv("LLM_API_KEY") or os.getenv("SYNSCALE_API_KEY")
+    url = os.getenv("LLM_API_URL") or "https://api.moonshot.cn/v1/chat/completions"
+    model = os.getenv("LLM_MODEL") or os.getenv("SYNSCALE_MODEL_NAME") or "kimi-k2.7-code"
     if key:
         providers.append({"key": key, "url": url, "model": model, "name": "primary"})
     # 备用 API 1
@@ -253,58 +248,6 @@ def _stream_one_provider(provider, messages, tools=None):
         yield {"error": True, "status_code": 0,
                "message": f"连接失败：{str(e)[:100]}，切换备用服务...",
                "provider": provider["name"]}
-
-    # 以下是旧 stream 代码的残留清理
-    # 原 call_synscale_stream 函数已合并到上面的 failover 逻辑中
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {SYNSCALE_API_KEY}"}
-    payload = {"model": MODEL_NAME, "messages": messages, "temperature": 0.6, "max_tokens": 2000, "stream": True}
-    if tools:
-        payload["tools"] = tools
-        payload["tool_choice"] = "auto"
-    else:
-        payload["temperature"] = 0.4
-        payload["max_tokens"] = 800
-
-    last_error = None
-    for attempt in range(retries + 1):
-        if attempt > 0:
-            _time.sleep(1.5 * attempt)
-        try:
-            resp = http_session.post(SYNSCALE_API_URL, headers=headers, json=payload, timeout=60, stream=True)
-            if resp.status_code == 200:
-                break
-            if 500 <= resp.status_code < 600:
-                err_names = {500:"服务器内部错误", 502:"网关错误", 503:"服务暂时不可用", 504:"网关超时"}
-                name = err_names.get(resp.status_code, f"HTTP {resp.status_code}")
-                last_error = {"error": True, "message": f"API{name}({resp.status_code})，重试中...", "details": resp.text[:200]}
-                continue
-            yield {"error": True, "message": f"API错误({resp.status_code})：{resp.text[:150]}", "details": resp.text[:200]}
-            return
-        except Exception as e:
-            yield {"error": True, "message": f"Request failed: {str(e)}"}
-            return
-
-    if last_error and resp.status_code != 200:
-        yield {"error": True, "message": "API服务暂时不可用(503)，已重试仍失败。\n\n含义：API服务商(SynScale)过载/维护中。\n解决：等待1-3分钟后重试。与你的网络无关。"}
-        return
-
-    # 流式读取
-    try:
-        for line in resp.iter_lines():
-            if not line: continue
-            line_str = line.decode("utf-8", errors="replace")
-            if line_str.startswith("data: "):
-                data_str = line_str[6:]
-                if data_str.strip() == "[DONE]": break
-                try:
-                    chunk = json.loads(data_str)
-                except json.JSONDecodeError:
-                    continue
-                choices = chunk.get("choices", [])
-                if choices:
-                    yield choices[0].get("delta", {})
-    except Exception as e:
-        yield {"error": True, "message": f"Stream failed: {str(e)}"}
 
 # ============================================================
 # 简单查询判断

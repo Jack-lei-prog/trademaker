@@ -4,8 +4,9 @@
 基于 Flask Blueprint 的模块化架构
 """
 import os as _os
-# 确保关键环境变量在 dotenv 之前就设置好（部署兼容）
-_os.environ.setdefault("LLM_API_KEY", "sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A")
+# 部署兼容：dotenv 之前预设环境变量为占位值，确保应用不会因缺变量崩溃
+# 实际值通过 .env 文件或系统环境变量注入
+_os.environ.setdefault("LLM_API_KEY", "sk-your-api-key-here")
 _os.environ.setdefault("LLM_API_URL", "https://api.moonshot.cn/v1/chat/completions")
 _os.environ.setdefault("LLM_MODEL", "kimi-k2.7-code")
 _os.environ.setdefault("FLASK_DEBUG", "0")
@@ -29,8 +30,9 @@ atexit.register(lambda: __import__('db').close_all_connections())
 try:
     from knowledge.demo import init_demo_user
     init_demo_user()
-except Exception:
-    pass
+except Exception as _e:
+    import logging
+    logging.getLogger("TradeMaster").warning(f"Demo init skipped: {_e}")
 
 # ============================================================
 # CORS 白名单（生产环境允许所有来源）

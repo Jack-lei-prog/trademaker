@@ -239,40 +239,6 @@ def api_customer_acquisition():
         futures = [executor.submit(process_buyer, b) for b in structured[:max_results]]
         concurrent.futures.wait(futures, timeout=30)
 
-    # 阶段3: Kimi 评价开发信质量（快速评价前5封）
-    from evaluator import kimi_evaluate, kimi_available
-    eval_scores = {}
-    if kimi_available():
-        has_draft = [b for b in drafts if b.get("draft_email")]
-        eval_batch = has_draft[:5]
-        if eval_batch:
-            def eval_buyer(buyer):
-                try:
-                    q = f"为{keyword}产品撰写一封给{buyer['company_name']}的开发信"
-                    a = buyer["draft_email"]
-                    result = kimi_evaluate(q, a)
-                    if "scores" in result:
-                        return buyer["company_name"], result["scores"].get("overall", 0), result.get("suggestion", "")
-                except Exception:
-                    pass
-                return buyer["company_name"], 0, ""
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as eval_exec:
-                eval_futures = [eval_exec.submit(eval_buyer, b) for b in eval_batch]
-                for f in concurrent.futures.as_completed(eval_futures, timeout=20):
-                    try:
-                        name, score, tip = f.result()
-                        if score > 0:
-                            eval_scores[name] = {"score": round(score, 1), "tip": tip}
-                    except Exception:
-                        pass
-
-            # 把评分附到对应 buyer
-            for b in drafts:
-                if b["company_name"] in eval_scores:
-                    b["kimi_score"] = eval_scores[b["company_name"]]["score"]
-                    b["kimi_tip"] = eval_scores[b["company_name"]]["tip"]
-
     return jsonify({
         "success": True,
         "keyword": keyword,
@@ -280,5 +246,4 @@ def api_customer_acquisition():
         "saved_to_contacts": len(saved_contacts),
         "buyers": drafts,
         "raw_note": note[:3000] if not structured else "",
-        "kimi_evaluated": len(eval_scores),
     })
