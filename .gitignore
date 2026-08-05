@@ -37,3 +37,5 @@ smtp_settings.json
 test_output*.txt
 test_final_persist.txt
 
+test_companies.xlsx
+test_manual.pdf
