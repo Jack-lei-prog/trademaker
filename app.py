@@ -26,13 +26,15 @@ except Exception:
     pass
 
 # ============================================================
-# CORS 白名单
+# CORS 白名单（生产环境允许所有来源）
 # ============================================================
+import os as _os
+_is_dev = _os.getenv("FLASK_DEBUG", "0") == "1"
 ALLOWED_ORIGINS = {
     "http://127.0.0.1:5000",
     "http://localhost:5000",
     "http://192.168.1.100:5000",
-}
+} if _is_dev else None  # None = allow all origins in production
 
 
 # ============================================================
@@ -49,10 +51,15 @@ def _before_request():
 def _after_request(response):
     # CORS 头
     origin = request.headers.get("Origin", "")
-    if origin in ALLOWED_ORIGINS or not origin:
+    if ALLOWED_ORIGINS is None:
+        # 生产环境：允许所有来源
         response.headers["Access-Control-Allow-Origin"] = origin or "*"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    elif origin in ALLOWED_ORIGINS or not origin:
+        response.headers["Access-Control-Allow-Origin"] = origin or "*"
+    else:
+        pass  # 拒绝未授权来源
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
 
     # 请求 ID
     req_id = getattr(g, "request_id", "")
@@ -127,7 +134,6 @@ def _unhandled(e):
 # 启动
 # ============================================================
 if __name__ == "__main__":
-    import os as _os
     is_debug = _os.getenv("FLASK_DEBUG", "0") == "1"
     print("=" * 60)
     print("[TradeMaster] Foreign Trade Assistant Web Service Starting...")
