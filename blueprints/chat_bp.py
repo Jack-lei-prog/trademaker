@@ -101,13 +101,16 @@ def health():
         checks["database"] = f"error: {str(e)[:100]}"
         status["status"] = "degraded"
 
-    # API 连通性检查
-    from services import get_provider_status, LLM_PROVIDERS
-    checks["llm_api"] = {
-        "providers": len(LLM_PROVIDERS),
-        "detail": {p["name"]: get_provider_status().get(p["name"], {}).get("status", "unknown")
-                   for p in LLM_PROVIDERS}
-    }
+    # API 连通性检查 + 自动修复
+    from services import get_provider_status, LLM_PROVIDERS, reset_all_providers
+    statuses = {p["name"]: get_provider_status().get(p["name"], {}).get("status", "unknown")
+                for p in LLM_PROVIDERS}
+    # 如果所有provider都在错误状态，自动重置（API可能已恢复）
+    all_error = all("error" in str(v).lower() for v in statuses.values())
+    if all_error and LLM_PROVIDERS:
+        reset_all_providers()
+        statuses = {p["name"]: "reset" for p in LLM_PROVIDERS}
+    checks["llm_api"] = {"providers": len(LLM_PROVIDERS), "detail": statuses}
 
     # 磁盘检查
     try:
@@ -328,14 +331,18 @@ def upload_excel():
 
 def get_help_text():
     return """## 📖 使用帮助
-我可以帮您完成以下任务：
-1. **🔍 买家搜索** — "帮我搜索电子产品相关的买家"
-2. **📊 公司分析** — "分析一下 techglobal.com 这家公司"
-3. **✉️ 开发信撰写** — "给 TechGlobal 写一封开发信，推销蓝牙耳机"
-4. **📩 询盘处理** — 直接粘贴客户询盘邮件内容
-5. **💱 汇率查询** — "美元兑人民币的汇率是多少？"
-6. **📝 商品描述生成** — "帮我为便携式加湿器生成商品描述"
-7. **💬 客户回复起草** — "客户问快递到哪了"
-8. **📈 销售日报分析** — "分析今天的销售数据"
-9. **🎯 营销广告语生成** — "为夏日防晒衣生成广告语"
-请直接输入您的需求，我会尽力帮助您！"""
+
+**💬 AI对话**
+1. 🔍 买家搜索 — "搜索德国蓝牙耳机进口商"
+2. ✉️ 开发信撰写 — "给XXX公司写一封开发信"
+3. 📩 询盘处理 — 直接粘贴客户询盘邮件
+4. 💱 汇率查询 — "美元兑人民币汇率"
+5. 📝 商品描述 — "为蓝牙耳机生成商品描述"
+6. 📈 销售分析 — "分析今天的销售数据"
+7. 🎯 广告语 — "为防晒衣生成广告语"
+
+**📎 文件上传（输入框下方按钮）**
+8. 📄 产品手册 — 上传PDF/TXT，开发信和广告语自动引用手册内容
+9. 📋 厂家列表 — 上传Excel批量导入客户，逐家发送开发信
+
+**💡 提示：上传产品手册后，Agent写开发信和广告语时会自动引用手册中的产品参数"""

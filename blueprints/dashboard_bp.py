@@ -113,6 +113,10 @@ def api_dashboard():
     replied_count = sum(1 for c in contacts if c.get("status") == "replied")
     reminders = db.get_due_reminders(user_email)
 
+    # 邮件待跟进统计
+    from services import get_pending_followups
+    pending_emails = get_pending_followups(user_email) if user_email else []
+
     return jsonify({
         "success": True,
         "user": {
@@ -130,5 +134,7 @@ def api_dashboard():
             "contacted": contacted_count,
             "replied": replied_count,
             "due_reminders": len(reminders),
+            "pending_emails": len(pending_emails),
+            "pending_email_list": [{"to": e.get("to",""), "subject": e.get("subject",""), "days_ago": e.get("days_ago",0)} for e in pending_emails[:5]],
         }
     })

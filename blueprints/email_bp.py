@@ -77,7 +77,13 @@ def api_get_sent():
     email = _safe_str(data.get("user_email")).strip().lower()
     if not email:
         return jsonify({"success": False, "error": "Missing user_email"}), 400
-    return jsonify({"success": True, "emails": get_user_emails(email)})
+    emails = get_user_emails(email)
+    # 如果没找到，也尝试加载所有邮件（兼容QQ邮箱发送场景）
+    if not emails:
+        from services import _email_provider
+        all_data = _email_provider._load()
+        emails = list(all_data.values())
+    return jsonify({"success": True, "emails": emails})
 
 
 @email_bp.route("/api/emails/pending", methods=["POST"])
@@ -94,9 +100,18 @@ def api_status():
     ue = _safe_str(data.get("user_email")).lower()
     te = _safe_str(data.get("to_email")).lower()
     st = _safe_str(data.get("status")).lower()
+    reply_text = _safe_str(data.get("reply_text")).strip()
+
     if not ue or not te or st not in ("sent", "replied", "bounced", "no_reply"):
         return jsonify({"success": False, "error": "Invalid"}), 400
     r = update_email_status(ue, te, st)
+
+    if r and st == "replied" and reply_text:
+        from email_tracker import classify_intent
+        intent = classify_intent(reply_text, r.get("subject",""))
+        r["intent"] = intent.get("intent","")
+        r["intent_brief"] = intent.get("brief","")
+
     return jsonify({"success": True, "email": r} if r else {"success": False, "error": "Not found"})
 
 
@@ -133,13 +148,28 @@ def api_classify():
 
 @email_bp.route("/api/email/sync", methods=["POST"])
 def api_sync():
-    from services import _email_provider
+    """IMAP 收件箱同步 — 自动检测客户回复"""
     data = request.get_json() or {}
-    email = _safe_str(data.get("user_email")).strip().lower()
-    if not email:
-        return jsonify({"success": False, "error": "Missing user_email"}), 400
-    new_replies = _email_provider.sync_inbox(email)
-    return jsonify({"success": True, "new_replies": len(new_replies), "replies": new_replies})
+    email_addr = _safe_str(data.get("user_email")).strip().lower()
+
+    try:
+        from imap_sync import check_replies, is_imap_configured
+        if not is_imap_configured():
+            return jsonify({
+                "success": False,
+                "error": "IMAP 未配置。请在 SMTP 设置中填写邮箱和授权码（QQ邮箱需开启IMAP服务）",
+                "hint": "QQ邮箱 → 设置 → 账户 → POP3/IMAP/SMTP服务 → 开启IMAP"
+            }), 400
+
+        replies = check_replies(email_addr)
+        return jsonify({
+            "success": True,
+            "new_replies": len(replies),
+            "replies": replies,
+            "message": f"发现 {len(replies)} 条新回复" if replies else "未发现新的客户回复"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": f"同步失败: {str(e)[:100]}"}), 500
 
 
 # ============================================================

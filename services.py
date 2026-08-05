@@ -42,7 +42,15 @@ def _build_providers():
     return providers
 
 LLM_PROVIDERS = _build_providers()
-_provider_health = {}  # 记录各 provider 的健康状态
+_provider_health = {}
+
+def reset_all_providers():
+    """重置所有提供商健康状态（API恢复时调用）"""
+    global _provider_health
+    _provider_health = {}
+    # 清除持久化的错误状态
+    import db
+    db.kv_set("api_error_state", {"reset": True})
 
 def get_provider_status():
     """获取所有 API 提供商状态"""
@@ -143,36 +151,36 @@ def call_synscale(messages, tools=None, retries=0):
     providers_tried = []
 
     for provider in LLM_PROVIDERS:
-        # 跳过最近1分钟内失败的 provider
-        health = _provider_health.get(provider["name"], {})
-        last_fail = health.get("last_fail", 0)
-        if last_fail and _time.time() - last_fail < 10:
-            providers_tried.append(f"{provider['name']}(冷却中)")
-            continue
-
         result = _call_one_provider(provider, messages, tools)
         if "error" not in result:
+            # 成功后清除错误状态
+            _provider_health.pop(provider["name"], None)
             return result
 
         # 记录失败
         sc = result.get("status_code", 0)
         _provider_health[provider["name"]] = {"status": f"error:{sc}", "last_fail": _time.time()}
 
-        if 500 <= sc < 600 or sc in (401, 403):
-            # 5xx + 认证错误 → 尝试下一个 provider（可能是密钥过期/占位符）
+        if 500 <= sc < 600 or sc in (401, 403, 400):
+            # 5xx/4xx → 尝试下一个 provider
             name = err_names.get(sc, f"HTTP {sc}")
             providers_tried.append(f"{provider['name']}:{name}")
             continue
         else:
-            # 其他4xx → 不重试
             name = err_names.get(sc, f"HTTP {sc}")
             return {"error": True, "message": f"API{name}({sc})", "details": result.get("details", "")}
 
-    # 所有 provider 都失败
+    # 所有 provider 都失败 → 立即无条件重试第一个
+    if LLM_PROVIDERS:
+        _provider_health.clear()
+        result = _call_one_provider(LLM_PROVIDERS[0], messages, tools)
+        if "error" not in result:
+            return result
+
     tried_str = " → ".join(providers_tried) if providers_tried else "无可用提供商"
     return {
         "error": True,
-        "message": f"所有API提供商均不可用（尝试了 {len(LLM_PROVIDERS)} 个）。\n\n路径：{tried_str}\n\n原因：上游AI服务商过载/维护，与你的网络无关。\n解决：等待1-3分钟后重试。可配置多个API密钥实现自动切换。"
+        "message": f"API暂时不可用。已自动重试仍失败，请稍后再试。"
     }
 
 def call_synscale_stream(messages, tools=None):

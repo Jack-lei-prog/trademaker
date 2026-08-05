@@ -438,6 +438,8 @@ function filterEmails(filter) {
     renderEmailList();
 }
 
+var _emailRefreshTimer = null;
+
 async function loadEmailBox() {
     if (!currentUser) return;
     try {
@@ -454,6 +456,26 @@ async function loadEmailBox() {
             loadEmailStats();
         }
     } catch(e) {}
+    // 自动刷新：每2分钟同步一次收件箱
+    if (_emailRefreshTimer) clearInterval(_emailRefreshTimer);
+    _emailRefreshTimer = setInterval(function(){
+        if (document.getElementById('emailPanel').classList.contains('open')) {
+            syncInboxSilent();
+        }
+    }, 120000);
+}
+
+function syncInboxSilent() {
+    if (!currentUser) return;
+    fetch('/api/email/sync', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_email: currentUser.email})
+    }).then(function(r){return r.json()}).then(function(d){
+        if (d.success && d.replies && d.replies.length > 0) {
+            updateEmailBadge();
+        }
+        loadEmailBox();  // Always refresh after sync
+    }).catch(function(){});
 }
 
 async function loadEmailStats() {
@@ -1895,6 +1917,20 @@ function renderDashboard(d) {
         '<div class="db-stat"><div class="db-stat-val" style="color:#e87070">' + (stats.due_reminders||0) + '</div><div class="db-stat-lbl">需提醒</div></div>' +
         '</div>';
 
+    // Pending email follow-ups
+    var pendingEmails = stats.pending_email_list || [];
+    if (pendingEmails.length > 0) {
+        html += '<div class="db-section"><h3>📧 待跟进邮件</h3>';
+        pendingEmails.forEach(function(e){
+            html += '<div class="db-tradeshow" style="border-left-color:#f0a040">' +
+                '<div class="ts-name">📨 ' + (e.subject||'无主题') + '</div>' +
+                '<div class="ts-meta">收件人: ' + (e.to||'?') + ' | ' + (e.days_ago||'?') + '天前</div>' +
+                '<div class="ts-tip">💡 超过1天未回复，建议跟进</div>' +
+                '</div>';
+        });
+        html += '</div>';
+    }
+
     // Trade shows
     html += '<div class="db-section"><h3>📅 ' + (user.product||'产品') + ' 相关展销会</h3>';
     if (shows.length === 0) {
@@ -1978,7 +2014,6 @@ function initSidebar() {
 function loadSidebarData() {
     if (!currentUser || !currentUser.product) return;
     var toggle = document.getElementById('sidebarToggle');
-    toggle.classList.add('visible');
 
     // 首次登录自动展开侧边栏
     if (!sessionStorage.getItem('sidebarShown')) {
@@ -1986,7 +2021,7 @@ function loadSidebarData() {
             document.getElementById('sidebar').classList.add('open');
             toggle.classList.add('shifted');
             sessionStorage.setItem('sidebarShown', '1');
-        }, 800);
+        }, 1000);
     }
 
     fetch('/api/dashboard', {
@@ -2306,7 +2341,13 @@ function initDoll() {
     document.getElementById('moodSendBtn').addEventListener('click', sendMoodMsg);
     document.getElementById('moodInput').addEventListener('keydown', function(e){ if(e.key==='Enter') sendMoodMsg(); });
     document.getElementById('moodCloseChat').addEventListener('click', function(){
-        document.getElementById('moodChat').style.display = 'none';
+        var chat = document.getElementById('moodChat');
+        chat.style.display = 'none';
+        // Reset position to default
+        chat.style.right = '20px';
+        chat.style.bottom = '110px';
+        chat.style.left = 'auto';
+        chat.style.top = 'auto';
     });
     function openPicker() {
         var overlay = document.getElementById('moodPickerOverlay');
@@ -2366,6 +2407,13 @@ function onDollDrag(e) {
     doll.style.right = 'auto'; doll.style.bottom = 'auto';
     doll.style.left = (e.clientX - moodDrag.x) + 'px';
     doll.style.top = (e.clientY - moodDrag.y) + 'px';
+    // Also update chat position if open
+    var chat = document.getElementById('moodChat');
+    if (chat.style.display === 'flex') {
+        var dollRect = doll.getBoundingClientRect();
+        chat.style.left = Math.max(10, dollRect.right - 260) + 'px';
+        chat.style.top = Math.max(10, dollRect.top - 290) + 'px';
+    }
 }
 function onDollDragEnd() {
     document.removeEventListener('mousemove', onDollDrag);
@@ -2382,7 +2430,18 @@ function petDoll() {
 }
 
 function openMoodChat() {
-    document.getElementById('moodChat').style.display = 'flex';
+    var chat = document.getElementById('moodChat');
+    var doll = document.getElementById('moodDoll');
+    var dollRect = doll.getBoundingClientRect();
+    // Position chat relative to doll
+    chat.style.right = 'auto';
+    chat.style.bottom = 'auto';
+    chat.style.left = (dollRect.right - 260) + 'px';
+    chat.style.top = (dollRect.top - 290) + 'px';
+    // Ensure chat stays in viewport
+    if (parseInt(chat.style.left) < 10) chat.style.left = '10px';
+    if (parseInt(chat.style.top) < 10) chat.style.top = '10px';
+    chat.style.display = 'flex';
     if (!moodGreeted) { showMoodCloud('auto'); moodGreeted = true; }
     moodLastInteraction = Date.now();
 }
@@ -2420,12 +2479,22 @@ function sendMoodMsg() {
     addMoodChatMsg(msg, true);
     input.value = '';
     moodLastInteraction = Date.now();
+    // Show typing indicator
+    var c = document.getElementById('moodChatMsgs');
+    var typing = document.createElement('div');
+    typing.className = 'doll-msg doll-typing'; typing.id = 'moodTyping';
+    typing.innerHTML = '<span class=\"doll-msg-text\" style=\"color:var(--text4);font-style:italic\">嗯...</span>';
+    c.appendChild(typing); c.scrollTop = c.scrollHeight;
     fetch('/api/doll/chat', {method:'POST',headers:{'Content-Type':'application/json'},
         body: JSON.stringify({message:msg, doll_id:moodDoll.id})
     }).then(function(r){return r.json()}).then(function(d){
+        var t = document.getElementById('moodTyping'); if(t) t.remove();
         moodLastInteraction = Date.now();
         addMoodChatMsg(d.success ? d.reply : '唔...走神了~', false);
-    }).catch(function(){ addMoodChatMsg('呀，网络不好~', false); });
+    }).catch(function(){
+        var t = document.getElementById('moodTyping'); if(t) t.remove();
+        addMoodChatMsg('呀，网络不好~', false);
+    });
 }
 
 function loadMoodPicker() {
@@ -2513,6 +2582,36 @@ function updateWorkflowStage(stage) {
                 }
             });
         }
+    });
+}
+
+function syncInbox() {
+    if (!currentUser) { alert('请先登录'); return; }
+    var btn = event.target;
+    btn.textContent = '⏳ 同步中...'; btn.disabled = true;
+    fetch('/api/email/sync', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({user_email: currentUser.email})
+    }).then(function(r){return r.json()}).then(function(d){
+        btn.textContent = '📥 同步'; btn.disabled = false;
+        if (d.success) {
+            var replies = d.replies || [];
+            if (replies.length > 0) {
+                var msg = '📬 发现 ' + replies.length + ' 条客户回复：';
+                replies.forEach(function(r){
+                    msg += '\n• ' + (r.from||'') + ' — ' + (r.subject||'') + ' [' + (r.intent||'?') + ']';
+                });
+                addMessage('assistant', msg);
+            } else {
+                addMessage('assistant', '📭 ' + (d.message || '未发现新的客户回复'));
+            }
+            if (typeof loadEmailBox === 'function') loadEmailBox();
+        } else {
+            addMessage('assistant', '❌ ' + (d.error || '同步失败'));
+        }
+    }).catch(function(e){
+        btn.textContent = '📥 同步'; btn.disabled = false;
+        addMessage('assistant', '❌ 同步失败：网络错误');
     });
 }
 

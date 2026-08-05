@@ -143,6 +143,7 @@
         <button class="email-filter-tab" data-filter="sent">已发送</button>
         <button class="email-filter-tab" data-filter="replied">已回复</button>
         <button class="email-filter-tab" data-filter="pending">待跟进</button>
+        <button class="email-filter-tab" onclick="syncInbox()" style="margin-left:auto" title="通过IMAP同步收件箱，自动检测客户回复">📥 同步</button>
       </div>
       <div class="email-list" id="emailList"><div style="text-align:center;padding:8px;color:#a3bfd8;font-size:12px">暂无邮件</div></div>
     </div>
@@ -188,8 +189,10 @@
         <button class="btn-send" id="btnSend">&#x27a4;</button>
       </div>
       <div class="input-toolbar">
-        <button class="input-tool-btn" id="btnUpload" title="上传产品手册 PDF/TXT">📄 产品手册</button>
-        <button class="input-tool-btn" id="btnExcelUpload" title="上传厂家 Excel 批量发邮件">📋 厂家列表</button>
+        <div class="input-toolbar-left">
+          <button class="input-tool-btn" id="btnUpload" title="上传产品手册 PDF/TXT">📄 产品手册</button>
+          <button class="input-tool-btn" id="btnExcelUpload" title="上传厂家 Excel 批量发邮件">📋 厂家列表</button>
+        </div>
         <span class="lang-mini"><span class="lang-mini-btn active" id="langZH2">中</span><span class="lang-mini-sep">/</span><span class="lang-mini-btn" id="langEN2">EN</span></span>
       </div>
     </div>
