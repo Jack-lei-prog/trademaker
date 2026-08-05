@@ -1,0 +1,30 @@
+# Render Blueprint — 一键部署配置
+# 文档: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: trademaker
+    runtime: python
+    region: singapore  # 新加坡（亚洲访问最快）
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers=2 --timeout=120
+    envVars:
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: LLM_API_KEY
+        sync: false  # 敏感信息，需手动设置
+      - key: LLM_API_URL
+        value: https://api.moonshot.cn/v1/chat/completions
+      - key: LLM_MODEL
+        value: kimi-k2.7-code
+      - key: LLM_BACKUP1_KEY
+        sync: false
+      - key: LLM_BACKUP1_URL
+        value: https://api.deepseek.com/v1/chat/completions
+      - key: LLM_BACKUP1_MODEL
+        value: deepseek-chat
+      - key: KIMI_API_KEY
+        sync: false
+      - key: KIMI_MODEL
+        value: kimi-k2.7-code
