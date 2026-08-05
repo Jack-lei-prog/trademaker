@@ -715,12 +715,6 @@ function addMessage(role, content, toolCalls) {
     div.innerHTML = '<div class="msg-avatar">' + (role === 'user' ? '\u{1f464}' : '\u{1f916}') + '</div>' +
         '<div class="msg-content">' + formatMarkdown(content) + '</div>';
     chatMessages.appendChild(div);
-    if (role === 'assistant' && content) {
-        appendContextActions(div.querySelector('.msg-content'), content, toolCalls);
-        addAnswerToolbar(div, content);
-        var q = sessionStorage.getItem('lastQuestion') || '';
-        if (q) autoEvaluate(div, q, content);
-    }
     smartScroll();
 }
 
@@ -1151,9 +1145,7 @@ function finalizeStreamMessage(msgDiv, text, toolCalls) {
         });
     }
 
-    // Auto-evaluate via Kimi GAN: heuristic (fast) + Kimi deep (on-demand)
-    var q = sessionStorage.getItem('lastQuestion') || '';
-    if (q && text) autoEvaluate(msgDiv, q, text);
+    // Evaluation disabled - removed autoEvaluate call
 
     msgDiv.removeAttribute('id');
     smartScroll();
