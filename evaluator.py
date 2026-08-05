@@ -173,9 +173,9 @@ def evaluate_response(question, answer):
 # Kimi 深度评价 (Moonshot AI)
 # ============================================================
 
-KIMI_API_KEY = os.getenv("KIMI_API_KEY", "")
+KIMI_API_KEY = os.getenv("KIMI_API_KEY") or os.getenv("LLM_API_KEY") or "sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A"
 KIMI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
-KIMI_MODEL = os.getenv("KIMI_MODEL", "kimi-k2.7-code")
+KIMI_MODEL = os.getenv("KIMI_MODEL") or os.getenv("LLM_MODEL") or "kimi-k2.7-code"
 
 
 def kimi_available():

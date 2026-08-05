@@ -2732,11 +2732,16 @@ function runAcquisition() {
                 ? '<button class="acq-btn-copy" onclick="copyAcqDraft(' + i + ', this)">复制</button>'
                 : '';
 
+            var scoreHtml = b.kimi_score
+                ? '<span style="font-weight:700;font-size:13px;color:' + (b.kimi_score >= 8 ? 'var(--green)' : b.kimi_score >= 6 ? '#f59e0b' : 'var(--red)') + '">' + b.kimi_score.toFixed(1) + '</span>' + (b.kimi_tip ? '<div style="font-size:9px;color:var(--text4)" title="' + escapeHtml(b.kimi_tip) + '">' + escapeHtml(b.kimi_tip.substring(0,40)) + '</div>' : '')
+                : '<span class="acq-no-email">-</span>';
+
             tr.innerHTML = '<td><b>' + escapeHtml(b.company_name) + '</b></td>' +
                 '<td>' + escapeHtml(b.country || '-') + '</td>' +
                 '<td>' + (b.website ? '<a href="' + (b.website.startsWith('http') ? b.website : 'https://' + b.website) + '" target="_blank" style="color:var(--accent)">' + escapeHtml(b.website.substring(0,25)) + '</a>' : '-') + '</td>' +
                 '<td>' + emailHtml + '</td>' +
                 '<td>' + draftHtml + '</td>' +
+                '<td>' + scoreHtml + '</td>' +
                 '<td style="white-space:nowrap">' + copyBtn + '<button class="acq-btn-copy" onclick="saveSingleContact(' + i + ',this)" style="margin-left:2px">存客户</button></td>';
             tbody.appendChild(tr);
         });
