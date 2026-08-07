@@ -9,7 +9,6 @@ WorkingDirectory=/var/www/trademaker
 ExecStart=/var/www/trademaker/venv/bin/gunicorn wsgi:app --bind 127.0.0.1:8000 --workers=2 --timeout=120 --access-logfile /var/log/trademaker/access.log --error-logfile /var/log/trademaker/error.log
 Restart=always
 RestartSec=5
-Environment="PATH=/var/www/trademaker/venv/bin"
 EnvironmentFile=/var/www/trademaker/.env
 
 [Install]

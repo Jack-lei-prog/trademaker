@@ -2,8 +2,17 @@
 var chatMessages, chatInput, btnSend;
 var isLoading = false;
 var currentUser = null;
+var authToken = localStorage.getItem('tradeMasterToken') || null;
 var regIdentity = 'seller';
 var emailFilter = 'all';
+
+// Helper: return auth headers for all API calls
+function getAuthHeaders() {
+    var h = {'Content-Type': 'application/json'};
+    if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+    return h;
+}
+
 var allEmails = [];
 var currentLang = (localStorage.getItem('tradeMasterLang') || 'zh');
 
@@ -290,12 +299,13 @@ async function doLogin() {
     try {
         var resp = await fetch('/api/login', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({email: email, password: password})
         });
         var data = await resp.json();
         if (data.success) {
             currentUser = data.user;
+            if (data.token) { authToken = data.token; localStorage.setItem('tradeMasterToken', data.token); }
             localStorage.setItem('tradeMasterUser', JSON.stringify(currentUser));
             showAuthOverlay(false);
             updateUserBar();
@@ -329,12 +339,13 @@ async function doRegister() {
     try {
         var resp = await fetch('/api/register', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({email: email, password: password, phone: phone, company: company, product: product, identity: regIdentity})
         });
         var data = await resp.json();
         if (data.success) {
             currentUser = data.user;
+            if (data.token) { authToken = data.token; localStorage.setItem('tradeMasterToken', data.token); }
             localStorage.setItem('tradeMasterUser', JSON.stringify(currentUser));
             showAuthOverlay(false);
             updateUserBar();
@@ -353,7 +364,9 @@ async function doRegister() {
 
 function doLogout() {
     currentUser = null;
+    authToken = null;
     localStorage.removeItem('tradeMasterUser');
+    localStorage.removeItem('tradeMasterToken');
     document.getElementById('userBar').style.display = 'none';
     document.getElementById('btnLogout').style.display = 'none';
     showAuthOverlay(true);
@@ -406,7 +419,7 @@ function saveSmtpSettings() {
     if (!pwd) { showSmtpMsg('error', '请输入授权码'); return; }
     showSmtpMsg('info', '保存中...');
     fetch('/api/email/smtp_settings', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: getAuthHeaders(),
         body: JSON.stringify({smtp_email: email, smtp_password: pwd, sender_name: name})
     }).then(function(r){return r.json();}).then(function(d){
         if(d.success) { showSmtpMsg('success', '✅ ' + d.message + ' — 现在可以用 TradeMaster 发送邮件了！'); }
@@ -422,7 +435,7 @@ function testSmtpSettings() {
     if (!pwd) { showSmtpMsg('error', '请输入授权码'); return; }
     showSmtpMsg('info', '正在通过 SMTP 发送测试邮件...');
     fetch('/api/email/smtp_test', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: getAuthHeaders(),
         body: JSON.stringify({smtp_email: email, smtp_password: pwd, sender_name: name})
     }).then(function(r){return r.json();}).then(function(d){
         if(d.success) { showSmtpMsg('success', '✅ 测试邮件已发送至 ' + email + '，请检查收件箱！'); }
@@ -445,7 +458,7 @@ async function loadEmailBox() {
     try {
         var resp = await fetch('/api/emails/sent', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({user_email: currentUser.email})
         });
         var data = await resp.json();
@@ -483,7 +496,7 @@ async function loadEmailStats() {
     try {
         var resp = await fetch('/api/email/stats', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({user_email: currentUser.email})
         });
         var data = await resp.json();
@@ -660,7 +673,7 @@ async function markEmailStatus(to_email, status) {
     try {
         await fetch('/api/emails/status', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({user_email: currentUser.email, to_email: to_email, status: status})
         });
         loadEmailBox();
@@ -699,7 +712,7 @@ function showQuickAddContact() {
 async function clearChat() {
     var payload = {session_id: currentUser ? currentUser.email : 'default'};
     if (currentUser) payload.user_email = currentUser.email;
-    await fetch('/api/clear', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+    await fetch('/api/clear', {method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload)});
     chatMessages.innerHTML = '';
     var div = document.createElement('div');
     div.className = 'welcome-message';
@@ -906,7 +919,7 @@ async function sendMessage() {
 async function sendMessageFallback(message) {
     var resp = await fetch('/api/chat', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({message: message, session_id: currentUser ? currentUser.email : 'default', user_email: currentUser ? currentUser.email : ''})
     });
     var data = await resp.json();
@@ -921,7 +934,7 @@ async function sendMessageStream(message) {
 
     var resp = await fetch('/api/chat/stream', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({message: message, session_id: currentUser ? currentUser.email : 'default', user_email: currentUser ? currentUser.email : ''}),
         signal: controller.signal
     });
@@ -1154,7 +1167,7 @@ function finalizeStreamMessage(msgDiv, text, toolCalls) {
 function autoEvaluate(msgDiv, question, answer) {
     fetch('/api/evaluate', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({question: question, answer: answer})
     }).then(function(r) { return r.json(); })
     .then(function(data) {
@@ -1330,7 +1343,7 @@ function triggerKimiEval(btn) {
     // Step 1: Kimi 深度评价
     fetch('/api/evaluate/kimi', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({question: question, answer: answer})
     }).then(function(r) { return r.json(); })
     .then(function(data) {
@@ -1370,7 +1383,7 @@ function triggerKimiEval(btn) {
 
             fetch('/api/evaluate/improve', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     question: question, answer: answer,
                     session_id: currentUser ? currentUser.email : 'default',
@@ -1497,7 +1510,7 @@ function triggerImprove(btn) {
 
     fetch('/api/evaluate/improve', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({
             question: question, answer: answer,
             session_id: currentUser ? currentUser.email : 'default',
@@ -1632,7 +1645,7 @@ function renderEmailActions(container, info) {
 
         fetch('/api/email/smtp_send', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 to_email: to, subject: subject, body: body,
                 to_name: (info.to_name || ''), user_email: currentUser ? currentUser.email : ''
@@ -1677,7 +1690,7 @@ function renderEmailActions(container, info) {
 
         fetch('/api/send_email', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 to_email: to, subject: subject, body: body,
                 to_name: (info.to_name || ''), user_email: currentUser.email
@@ -1726,7 +1739,7 @@ function loadContactBox() {
     if (!currentUser) return;
     fetch('/api/contacts/list', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({user_email: currentUser.email, status: (contactFilter !== 'all' ? contactFilter : '')})
     }).then(function(r){return r.json()}).then(function(d){
         if (!d.success) return;
@@ -1795,7 +1808,7 @@ function updateContactStatus(cid, status) {
     if (!currentUser) return;
     fetch('/api/contacts/update', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({user_email: currentUser.email, contact_id: cid, status: status})
     }).then(function(r){return r.json()}).then(function(d){
         if (d.success) loadContactBox();
@@ -1806,7 +1819,7 @@ function deleteContact(cid) {
     if (!currentUser || !confirm('确定删除该客户？')) return;
     fetch('/api/contacts/delete', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({user_email: currentUser.email, contact_id: cid})
     }).then(function(r){return r.json()}).then(function(d){
         if (d.success) loadContactBox();
@@ -1818,7 +1831,7 @@ function addBuyerToContacts(companyName, email, website, country, source) {
     if (!currentUser) { alert('请先登录'); return; }
     fetch('/api/contacts/add', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({
             user_email: currentUser.email,
             company_name: companyName,
@@ -1859,7 +1872,7 @@ function loadDashboard() {
     if (!currentUser) return;
     fetch('/api/dashboard', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({user_email: currentUser.email})
     }).then(function(r){return r.json()}).then(function(d){
         if (!d.success) return;
@@ -1992,7 +2005,7 @@ function saveSearchPreference(query) {
     if (!currentUser) return;
     fetch('/api/preferences', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({user_email: currentUser.email, update: true, search_query: query})
     }).catch(function(){});
 }
@@ -2026,7 +2039,7 @@ function loadSidebarData() {
 
     fetch('/api/dashboard', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({user_email: currentUser.email})
     }).then(function(r){return r.json()}).then(function(d){
         if (!d.success) return;
@@ -2131,7 +2144,7 @@ function handleFileUpload(event) {
             // 清除会话，让下次对话加载手册
             fetch('/api/clear', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: getAuthHeaders(),
                 body: JSON.stringify({user_email: currentUser.email, session_id: currentUser.email})
             }).then(function(){
                 addMessage('assistant', '✅ ' + d.message + '\n\n📄 预览：' + d.preview + '\n\n💡 产品手册已加载！之后的开发信、广告语、商品描述都将基于此手册内容生成。');
@@ -2694,7 +2707,7 @@ function runAcquisition() {
 
     fetch('/api/customer-acquisition', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({
             user_email: userEmail,
             keyword: keyword,
@@ -2780,7 +2793,7 @@ function saveSingleContact(i, btn) {
 
     fetch('/api/contacts/add', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: getAuthHeaders(),
         body: JSON.stringify({
             user_email: userEmail,
             company_name: b.company_name,
