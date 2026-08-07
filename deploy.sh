@@ -1,76 +1,84 @@
 #!/bin/bash
-# TradeMaster Tencent Cloud Deploy Script
-# Usage: bash deploy.sh [server_ip] [your_domain.com]
+# TradeMaster Deploy for Tencent Cloud (106.53.100.252)
+# Run this on your Ubuntu server: bash /tmp/deploy_trademaster.sh
 
 set -e
+IP=106.53.100.252
 
-SERVER_IP="${1:-}"
-DOMAIN="${2:-}"
+echo '========================================'
+echo ' TradeMaster Deploy'
+echo ' Server: '
+echo '========================================'
 
-if [ -z "$SERVER_IP" ]; then
-    echo "Usage: bash deploy.sh <server_ip> [your_domain.com]"
-    echo "Example: bash deploy.sh 123.45.67.89 trade.example.com"
-    exit 1
-fi
+echo '[1/7] Installing system deps...'
+apt update && apt install -y python3 python3-pip python3-venv nginx git
 
-echo "========================================"
-echo " TradeMaster Deploy to $SERVER_IP"
-echo "========================================"
+echo '[2/7] Creating directories...'
+mkdir -p /var/www/trademaker /var/log/trademaker
 
-# Step 1: SSH into server and install dependencies
-echo "[1/6] Installing system dependencies..."
-ssh root@$SERVER_IP "apt update && apt install -y python3 python3-pip python3-venv nginx git"
-
-# Step 2: Create project directory
-echo "[2/6] Setting up project directory..."
-ssh root@$SERVER_IP "mkdir -p /var/www/trademaker /var/log/trademaker && chown -R www-data:www-data /var/www/trademaker /var/log/trademaker"
-
-# Step 3: Clone repo
-echo "[3/6] Cloning repository..."
-ssh root@$SERVER_IP "cd /var/www/trademaker && git clone https://github.com/Jack-lei-prog/trademaker.git . || (cd /var/www/trademaker && git pull)"
-
-# Step 4: Create .env (copy manually - contains secrets)
-echo "[4/6] Uploading .env and deploying service files..."
-echo "       Please ensure .env is configured with SECRET_KEY and LLM_API_KEY"
-
-# Step 5: Setup Python venv and install dependencies
-echo "[5/6] Setting up Python environment..."
-ssh root@$SERVER_IP "cd /var/www/trademaker && python3 -m venv venv && ./venv/bin/pip install -r requirements.txt"
-
-# Step 6: Copy service files and start
-echo "[6/6] Configuring nginx and systemd..."
-# Copy service file
-ssh root@$SERVER_IP "cat > /etc/systemd/system/trademaker.service" < trademaker.service
-# Copy nginx config
-if [ -n "$DOMAIN" ]; then
-    sed "s/YOUR_DOMAIN_OR_IP/$DOMAIN/" trademaker.nginx.conf | ssh root@$SERVER_IP "cat > /etc/nginx/sites-available/trademaker"
+echo '[3/7] Cloning repo...'
+cd /var/www/trademaker
+if [ -d .git ]; then
+    git pull origin main
 else
-    sed "s/YOUR_DOMAIN_OR_IP/$SERVER_IP/" trademaker.nginx.conf | ssh root@$SERVER_IP "cat > /etc/nginx/sites-available/trademaker"
+    rm -rf ./* .[^.]*
+    git clone https://github.com/Jack-lei-prog/trademaker.git .
 fi
 
-# Enable and start
-ssh root@$SERVER_IP "
-    ln -sf /etc/nginx/sites-available/trademaker /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
-    nginx -t && systemctl reload nginx
-    systemctl daemon-reload
-    systemctl enable trademaker
-    systemctl start trademaker
-"
+echo '[4/7] Creating .env file...'
+cat > .env << 'ENVEOF'
+FLASK_DEBUG=0
+SECRET_KEY=c6d144cf4f485667c56af6fff881fa4e5bce109e038d0f7ddabacc7e2a1d51d2
+CORS_ORIGINS=http://106.53.100.252,http://localhost:5000,http://127.0.0.1:5000
 
-echo ""
-echo "========================================"
-echo " Deploy Complete!"
-echo " "
-echo " Check status:"
-echo "   ssh root@$SERVER_IP systemctl status trademaker"
-echo "   ssh root@$SERVER_IP systemctl status nginx"
-echo " "
-echo " View logs:"
-echo "   ssh root@$SERVER_IP journalctl -u trademaker -f"
-echo ""
-echo " URL: http://$SERVER_IP"
-if [ -n "$DOMAIN" ]; then
-    echo " URL: http://$DOMAIN"
-fi
-echo "========================================"
+LLM_API_KEY=sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A
+LLM_API_URL=https://api.moonshot.cn/v1/chat/completions
+LLM_MODEL=kimi-k2.7-code
+
+LLM_BACKUP1_URL=https://api.deepseek.com/v1/chat/completions
+LLM_BACKUP1_MODEL=deepseek-chat
+
+KIMI_API_KEY=sk-g1RmuqgbbGyO8TIPocy3vKYDApZSegAAAgxNeKVzGhtrdl0A
+KIMI_MODEL=kimi-k2.7-code
+
+SMTP_SERVER=smtp.qq.com
+SMTP_PORT=587
+SMTP_EMAIL=your_email@qq.com
+SMTP_PASSWORD=your_authorization_code
+SENDER_NAME=TradeMaster
+
+TRUSTED_PROXIES=127.0.0.1,::1
+ENVEOF
+echo '  .env created'
+
+echo '[5/7] Setting up Python venv...'
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+
+echo '[6/7] Configuring systemd...'
+cp trademaker.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable trademaker
+systemctl start trademaker
+sleep 2
+systemctl status trademaker --no-pager
+
+echo '[7/7] Configuring nginx...'
+sed "s/YOUR_DOMAIN_OR_IP//" trademaker.nginx.conf > /etc/nginx/sites-available/trademaker
+ln -sf /etc/nginx/sites-available/trademaker /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+
+chown -R www-data:www-data /var/www/trademaker /var/log/trademaker
+systemctl restart trademaker
+sleep 2
+
+echo ''
+echo '========================================'
+echo ' Deploy Complete!'
+echo ''
+echo ' Visit: http://'
+echo ''
+echo ' Check: systemctl status trademaker'
+echo ' Logs:  journalctl -u trademaker -f'
+echo '========================================'
