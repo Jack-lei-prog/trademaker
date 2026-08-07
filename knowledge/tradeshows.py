@@ -310,7 +310,44 @@ CERTIFICATIONS = {
 # 匹配引擎
 # ============================================================
 
-def find_tradeshows(product_keywords: str, top_n: int = 5) -> list:
+def _parse_tradeshow_date_range(date_str: str):
+    """Parse date range like '2026-10-11 ~ 2026-10-14', returns (start, end) or None"""
+    import re
+    parts = re.split(r'\s*[~\-]+\s*', date_str.replace('~', '-'), maxsplit=1)
+    try:
+        start = datetime.strptime(parts[0].strip(), '%Y-%m-%d').date()
+        end = datetime.strptime(parts[1].strip(), '%Y-%m-%d').date() if len(parts) > 1 else start
+        return start, end
+    except (ValueError, IndexError):
+        return None, None
+
+
+def _enrich_tradeshow(show: dict, product_key: str) -> dict:
+    """Add source metadata and status to a tradeshow entry"""
+    start, end = _parse_tradeshow_date_range(show.get('date', ''))
+    today = datetime.now().date()
+    if end and end < today:
+        status = 'ended'
+    elif start and start > today:
+        status = 'upcoming'
+    elif start and start <= today <= end:
+        status = 'ongoing'
+    else:
+        status = 'unknown'
+
+    return {
+        **show,
+        'source': show.get('source', 'Manual curation'),
+        'source_url': show.get('url', ''),
+        'last_verified': show.get('last_verified', '2026-08-07'),
+        'start_date': start.isoformat() if start else None,
+        'end_date': end.isoformat() if end else None,
+        'status': status,
+        'product_category': product_key,
+    }
+
+
+def find_tradeshows(product_keywords: str, top_n: int = 5, include_expired: bool = False) -> list:
     """
     根据产品关键词匹配相关展会。
     支持中英文关键词模糊匹配。
@@ -349,7 +386,14 @@ def find_tradeshows(product_keywords: str, top_n: int = 5) -> list:
                 score += 1
 
         if score > 0:
-            scored.append((score, key, shows))
+            # 过滤已过期展会
+            filtered = []
+            for show in shows:
+                enriched = _enrich_tradeshow(show, key)
+                if include_expired or enriched['status'] != 'ended':
+                    filtered.append(enriched)
+            if filtered or include_expired:
+                scored.append((score, key, filtered))
 
     # 按匹配度排序
     scored.sort(key=lambda x: x[0], reverse=True)

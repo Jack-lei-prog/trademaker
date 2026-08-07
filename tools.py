@@ -223,7 +223,7 @@ Dear Sir/Madam,
 
 I am writing to introduce our products. {product_highlight}
 
-We have over 10 years of export experience with competitive pricing and reliable quality.
+We specialize in manufacturing and exporting high-quality products with competitive pricing.
 Please contact us for a catalog and quotation.
 
 Best regards,

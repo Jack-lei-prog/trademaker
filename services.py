@@ -83,7 +83,7 @@ from user_service import (
 # ============================================================
 from tools import TOOL_FUNCTIONS, TOOL_DESCRIPTIONS
 from prompt_service import build_system_prompt
-from agents import AGENTS, detect_intent, get_agent_tools, MULTI_AGENT_PROMPT
+from agents import AGENTS, detect_intent, get_agent_tools, detect_intents, MULTI_AGENT_PROMPT
 
 # ============================================================
 # 工具调用
@@ -301,11 +301,12 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
     intent_agent = detect_intent(user_input) if use_tools else "coordinator"
     agent_tools = get_agent_tools(intent_agent) if use_tools else None
     agent_info = AGENTS.get(intent_agent, AGENTS["coordinator"])
+    _task_max_iterations = MAX_ITERATIONS
 
     iteration = 0
     tool_calls_log = []
 
-    while iteration < MAX_ITERATIONS:
+    while iteration < _task_max_iterations:
         iteration += 1
         response = call_synscale(messages, tools=agent_tools if use_tools else None)
         if "error" in response:
@@ -345,15 +346,17 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
         else:
             messages.append({"role": "assistant", "content": assistant_content})
             db.append_message(ue, sid, "assistant", assistant_content)
+            task_plan = [{"agent_id": aid, "agent_name": AGENTS.get(aid,{}).get("name","?"), "step": i+1} for i, (aid, kw, p) in enumerate(intents)]
             return {"reply": assistant_content, "tool_calls": tool_calls_log,
                     "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "completed"),
+                    "task_plan": task_plan,
                     "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
     timeout_msg = "抱歉，处理超时，请简化您的问题后重试"
     messages.append({"role": "assistant", "content": timeout_msg})
     db.append_message(ue, sid, "assistant", timeout_msg)
     return {"reply": timeout_msg, "tool_calls": tool_calls_log,
-            "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "timeout")}
+            "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, _task_max_iterations, tool_calls_log, "timeout")}
 
 def run_agent_stream(user_input, session_id="default", use_tools=True, user_email=None):
     sid = user_email or session_id or "default"
@@ -371,6 +374,7 @@ def run_agent_stream(user_input, session_id="default", use_tools=True, user_emai
     intent_agent = detect_intent(user_input) if use_tools else "coordinator"
     agent_tools = get_agent_tools(intent_agent) if use_tools else None
     agent_info = AGENTS.get(intent_agent, AGENTS["coordinator"])
+    _task_max_iterations = MAX_ITERATIONS
 
     iteration = 0
     total_tool_count = 0
