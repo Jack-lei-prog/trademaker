@@ -87,16 +87,62 @@ class MemoryRateLimitStore(RateLimitStore):
             del self._store[k]
 
 
+class RedisRateLimitStore(RateLimitStore):
+    """Redis 分布式限流存储（适用于多 worker gunicorn 部署）"""
+    def __init__(self, redis_url=None):
+        self._redis = None
+        self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    def _connect(self):
+        if self._redis is None:
+            try:
+                import redis
+                self._redis = redis.from_url(self._redis_url, socket_connect_timeout=2)
+                self._redis.ping()
+            except Exception as e:
+                raise RuntimeError(f"Redis 连接失败 ({self._redis_url}): {e}")
+
+    def get(self, key: str) -> tuple | None:
+        try:
+            self._connect()
+            data = self._redis.get(key)
+            if data:
+                return tuple(json.loads(data))
+        except Exception:
+            pass
+        return None
+
+    def set(self, key: str, value: tuple):
+        try:
+            self._connect()
+            count, start_time, window = value
+            self._redis.setex(key, window, json.dumps([count, start_time, window]))
+        except Exception:
+            pass
+
+    def cleanup(self):
+        # Redis keys auto-expire via setex, no manual cleanup needed
+        pass
+
+
 # 工厂函数
 def _get_rate_store() -> RateLimitStore:
     backend = os.getenv("RATE_LIMIT_BACKEND", "memory")
-    if backend == "memory":
-        return _memory_store
-    # 未来扩展: RedisRateLimitStore
+    if backend == "redis":
+        global _redis_store
+        if _redis_store is None:
+            try:
+                _redis_store = RedisRateLimitStore()
+            except Exception:
+                from logger import logger
+                logger.warning("Redis 不可用，降级到内存限流（多 worker 下限流不共享）")
+                _redis_store = _memory_store
+        return _redis_store
     return _memory_store
 
 
 _memory_store = MemoryRateLimitStore()
+_redis_store = None
 
 
 def rate_limit(max_requests: int = 20, window: int = 60):

@@ -103,7 +103,7 @@ pytest tests/ -v --ignore=tests/test_e2e.py
 ### 后端修改
 - `services.py` → `call_synscale()` 封装 LLM API 调用（多提供商故障切换）
 - `services.py` → `run_agent()` 管理 Agent 循环（最多 3 轮，`MAX_ITERATIONS=3`）
-- `agents.py` → `detect_intent()` 关键词路由 + `get_agent_tools()` 工具子集分配
+- `agents.py` → `detect_intents()` 多意图检测 + `get_task_agents()` 任务拆解 + `get_agent_tools()` 工具子集分配
 - `tools.py` → `TOOL_DESCRIPTIONS` (API schema) + `TOOL_FUNCTIONS` (实现映射)
 - 认证: 所有敏感端点用 `@login_required`，读 `g.user_email`（不用 request body 的 user_email）
 
@@ -148,7 +148,7 @@ pytest tests/ -v --ignore=tests/test_e2e.py
 
 ### 完成任务后
 1. 更新 `devlog/{date}.md` 记录完成事项
-2. 运行 `pytest tests/ --ignore=tests/test_e2e.py` 确保 74 个测试通过
+2. 运行 `pytest tests/ --ignore=tests/test_e2e.py` 确保 101 个测试通过
 3. 如有未完成事项，写入待办列表
 
 ## 约束条件
@@ -163,5 +163,5 @@ pytest tests/ -v --ignore=tests/test_e2e.py
 - Agent 生成邮件草稿 ≠ 发送；用户确认后才真正发出
 
 ## 当前版本
-v2.0.0 (2026-08-07)
+v2.1.0 (2026-08-07)
 — JWT 认证、CORS 白名单、SMTP 密码加密、两阶段邮件确认、全端点限流、数据溯源、安全测试

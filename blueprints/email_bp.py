@@ -1,6 +1,7 @@
 """邮件 Blueprint — send_email, emails/*, email/*（含两阶段确认发送）"""
 import json
 import uuid
+from datetime import datetime
 from flask import Blueprint, request, jsonify, Response, g
 from security import rate_limit
 from auth_middleware import login_required
@@ -303,10 +304,27 @@ def api_send_draft(draft_id):
     if not mailer.is_configured():
         return jsonify({"success": False, "error": "SMTP 未配置。请在页面设置中填写邮箱信息"}), 400
 
+    # 检查收件人是否已退订
+    to_email = draft.get("to_email", "")
+    if db.is_unsubscribed(to_email):
+        return jsonify({"success": False, "error": f"收件人 {to_email} 已退订，无法发送"}), 400
+
+    # 检查每日发送配额（每用户每天最多 50 封）
+    today_prefix = f"email_audit:{datetime.utcnow().strftime('%Y%m%d')}"
+    daily_count = sum(1 for log in db.get_email_audit_logs(user_email=g.user_email, limit=100)
+                      if log.get("success"))
+    if daily_count >= 50:
+        return jsonify({
+            "success": False,
+            "error": "今日发送已达上限 (50封/天)，请明天再试",
+            "daily_limit": 50,
+            "retry_after": "明天 00:00",
+        }), 429
+
     # 检查邮箱是否已通过验证（未被推测的邮箱才允许直接发送）
     guessed_patterns = ["purchasing@", "info@", "sales@", "inquiry@", "procurement@",
                        "import@", "export@", "contact@", "admin@", "office@"]
-    to_email_lower = draft.get("to_email", "").lower()
+    to_email_lower = to_email.lower()
     is_guessed = any(to_email_lower.startswith(p) for p in guessed_patterns)
     if is_guessed and not data.get("confirm_unverified"):
         return jsonify({
@@ -316,18 +334,66 @@ def api_send_draft(draft_id):
             "hint": "建议使用 Hunter.io / FindThatLead / Snov.io 验证邮箱有效性，或确认后添加 confirm_unverified: true 强制发送",
         }), 422
 
+    # 发送前审计日志
+    db.log_email_audit(draft_id, g.user_email, to_email, draft.get("subject", ""),
+                       draft.get("body", ""), idempotency_key, False)
+
     # 先标记幂等键（防竞态）
     db.kv_set(f"idempotency:{idempotency_key}", {
         "draft_id": draft_id, "sent_at": db._now()
     })
 
     result = mailer.send_email_smtp(
-        to_email=draft["to_email"], subject=draft["subject"],
+        to_email=to_email, subject=draft["subject"],
         body=draft["body"], to_name=draft["to_name"], from_name="")
     if result.get("success"):
-        eid, tid = track_sent_email(g.user_email, draft["to_email"], draft["to_name"],
+        eid, tid = track_sent_email(g.user_email, to_email, draft["to_name"],
                                      draft["subject"], draft["body"])
         result["tracking_id"] = tid
         db.kv_delete(f"email_draft:{draft_id}")
 
+    # 发送后审计日志
+    db.log_email_audit(draft_id, g.user_email, to_email, draft.get("subject", ""),
+                       draft.get("body", ""), idempotency_key,
+                       result.get("success", False), result.get("error"))
+
     return jsonify(result)
+
+
+@email_bp.route("/api/email/unsubscribe/<token>", methods=["GET"])
+def api_unsubscribe(token):
+    """退订端点（公开，基于 HMAC token 验证）"""
+    import hmac
+    try:
+        import base64
+        decoded = base64.urlsafe_b64decode(token.encode() + b"==").decode()
+        parts = decoded.split("|")
+        if len(parts) != 2:
+            return "<h3>无效的退订链接</h3>", 400
+        email_addr, sig = parts
+        expected = hmac.new(
+            __import__('config').SECRET_KEY.encode(),
+            email_addr.encode(), "sha256"
+        ).hexdigest()[:16]
+        if not hmac.compare_digest(sig, expected):
+            return "<h3>无效的退订链接</h3>", 400
+
+        if db.is_unsubscribed(email_addr):
+            return "<h3>该邮箱已经退订</h3>", 200
+
+        db.add_unsubscribe(email_addr, reason="用户点击退订链接")
+        return f"<h3>{email_addr} 已成功退订，将不再收到来自 TradeMaster 的邮件</h3>", 200
+    except Exception:
+        return "<h3>无效的退订链接</h3>", 400
+
+
+def generate_unsubscribe_token(email):
+    """生成退订 token（用于邮件中嵌入 List-Unsubscribe 链接）"""
+    import hmac
+    import base64
+    sig = hmac.new(
+        __import__('config').SECRET_KEY.encode(),
+        email.encode(), "sha256"
+    ).hexdigest()[:16]
+    payload = base64.urlsafe_b64encode(f"{email}|{sig}".encode()).decode().rstrip("=")
+    return payload

@@ -57,13 +57,12 @@ Flask App (app.py)
   |-- knowledge/         RAG 知识库
   |     |-- retriever.py    TF-IDF 检索器
   |     |-- tradeshows.py   50+ 展会数据库
-  |     |-- certifications.py 出口认证清单
-  |     |-- trade_terms.py  外贸术语
+  |     |-- demo.py          Demo 演示数据
   |
   |-- skills/            Agent 技能包
   |-- templates/         前端 (index.html)
   |-- static/            静态资源
-  |-- tests/             58 单元测试 + 16 安全测试
+  |-- tests/             85 单元测试 + 16 安全测试 (共101)
 ```
 
 ## Quick Start

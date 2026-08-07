@@ -13,7 +13,7 @@
 ```
 "TradeMaster 外贸通 — AI外贸全流程智能体平台。
 
-单Agent + 6大Skill协同架构，覆盖外贸业务从找客户到成交的全链路。
+6 Agent 协作架构，覆盖外贸业务从找客户到成交的全链路。
 
 打开 http://127.0.0.1:5000，登录演示账号。"
 ```
@@ -103,7 +103,7 @@ Agent自动完成5步闭环：
 1. 🛡️ 真实可落地 — 大企业邮箱自动拦截，推测邮箱标注验证状态
 2. 📅 50+展会数据库 — 按产品智能匹配全球展会+参展策略
 3. 🔄 多API故障切换 — 一个Key过期自动切到备用
-4. 🧪 58个pytest — 覆盖核心模块
+4. 🧪 101个pytest — 覆盖核心模块
 5. 🎨 玻璃拟态UI — 深浅色双主题，CSS变量驱动
 
 技术栈：Python Flask + SQLite WAL + Kimi/DeepSeek双API
@@ -140,7 +140,7 @@ SW3_agent_trade/
 ├── app.py                  # Flask 主入口 (Blueprint注册)
 ├── services.py             # Agent循环 + 多API切换
 ├── prompts.py              # 系统提示词 (6 Skill定义)
-├── tools.py                # 11个Function Calling工具
+├── tools.py                # 12个Function Calling工具
 ├── data_sources.py         # 多数据源 (Wikidata/OpenCorp/LLM)
 ├── db.py                   # SQLite WAL + 连接池 + KV存储
 ├── security.py             # 限流 + 输入校验
@@ -153,7 +153,7 @@ SW3_agent_trade/
 ├── prompt_service.py       # 动态提示词构建
 ├── logger.py               # 结构化日志
 │
-├── skills/                 # 6大Skill模块(参赛核心)
+├── skills/                 # 6 Agent协作模块
 │   ├── buyer_search.py
 │   ├── email_draft.py
 │   ├── trade_intelligence.py

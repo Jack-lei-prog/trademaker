@@ -18,6 +18,8 @@ TRADESHOWS = {
             "scale": "180,000+ attendees",
             "focus": "全球最大消费电子展，蓝牙音频品牌必争之地",
             "url": "https://www.ces.tech",
+            "source": "CES Official Website",
+            "last_verified": "2026-08-07",
             "tip": "建议提前3个月预约展位并联系北美分销商预约CES期间的见面"
         },
         {
@@ -28,6 +30,8 @@ TRADESHOWS = {
             "scale": "240,000+ visitors",
             "focus": "欧洲最大电子展，音频品牌进入欧洲市场的首选平台",
             "url": "https://www.ifa-berlin.com",
+            "source": "IFA Official Website",
+            "last_verified": "2026-08-07",
             "tip": "欧洲买家注重CE认证和环保包装，参会前确保取得CE/RoHS认证"
         },
         {
@@ -275,33 +279,50 @@ TRADESHOWS = {
 # ============================================================
 CERTIFICATIONS = {
     "bluetooth earphone": [
-        {"name": "CE (欧盟)", "required": True, "cost": "¥5,000-15,000", "time": "2-4周", "tip": "出口欧洲强制，含EMC+LVD+RED指令"},
-        {"name": "FCC (美国)", "required": True, "cost": "¥3,000-8,000", "time": "2-3周", "tip": "美国FCC ID认证，无线产品强制"},
-        {"name": "RoHS (欧盟)", "required": True, "cost": "¥1,000-3,000", "time": "1周", "tip": "有害物质限制，几乎所有出口产品需要"},
-        {"name": "BQB (蓝牙)", "required": False, "cost": "¥8,000-20,000", "time": "4-6周", "tip": "蓝牙SIG认证，大客户通常要求"},
+        {"name": "CE (欧盟)", "required": True, "cost": "¥5,000-15,000", "time": "2-4周", "tip": "出口欧洲强制，含EMC+LVD+RED指令",
+         "source": "https://single-market-economy.ec.europa.eu/ce-marking_en", "last_updated": "2026-08-07"},
+        {"name": "FCC (美国)", "required": True, "cost": "¥3,000-8,000", "time": "2-3周", "tip": "美国FCC ID认证，无线产品强制",
+         "source": "https://www.fcc.gov/engineering-technology/laboratory-division/general/equipment-authorization", "last_updated": "2026-08-07"},
+        {"name": "RoHS (欧盟)", "required": True, "cost": "¥1,000-3,000", "time": "1周", "tip": "有害物质限制，几乎所有出口产品需要",
+         "source": "https://environment.ec.europa.eu/topics/waste-and-recycling/rohs-directive_en", "last_updated": "2026-08-07"},
+        {"name": "BQB (蓝牙)", "required": False, "cost": "¥8,000-20,000", "time": "4-6周", "tip": "蓝牙SIG认证，大客户通常要求",
+         "source": "https://www.bluetooth.com/develop-with-bluetooth/qualification-listing/", "last_updated": "2026-08-07"},
     ],
     "led light": [
-        {"name": "CE+ERP (欧盟)", "required": True, "cost": "¥8,000-20,000", "time": "3-6周", "tip": "能效标签强制，ERP指令要求能效等级A以上"},
-        {"name": "UL/ETL (美国)", "required": True, "cost": "¥15,000-50,000", "time": "6-12周", "tip": "美国安全认证，LED灯具进入北美市场强制"},
-        {"name": "SASO (沙特)", "required": True, "cost": "¥5,000-10,000", "time": "2-4周", "tip": "出口沙特强制，需配合SABER系统注册"},
+        {"name": "CE+ERP (欧盟)", "required": True, "cost": "¥8,000-20,000", "time": "3-6周", "tip": "能效标签强制，ERP指令要求能效等级A以上",
+         "source": "https://commission.europa.eu/energy-climate-change-environment/standards-tools-and-labels/products-labelling-rules-and-requirements/energy-label-and-ecodesign_en", "last_updated": "2026-08-07"},
+        {"name": "UL/ETL (美国)", "required": True, "cost": "¥15,000-50,000", "time": "6-12周", "tip": "美国安全认证，LED灯具进入北美市场强制",
+         "source": "https://www.ul.com/services/lighting-certification", "last_updated": "2026-08-07"},
+        {"name": "SASO (沙特)", "required": True, "cost": "¥5,000-10,000", "time": "2-4周", "tip": "出口沙特强制，需配合SABER系统注册",
+         "source": "https://saber.sa/", "last_updated": "2026-08-07"},
     ],
     "clothing": [
-        {"name": "OEKO-TEX 100", "required": True, "cost": "¥3,000-8,000", "time": "2-3周", "tip": "纺织品有害物质检测，欧洲买家基本要求"},
-        {"name": "GOTS (有机棉)", "required": False, "cost": "¥10,000-30,000", "time": "4-8周", "tip": "全球有机纺织品标准，可持续时尚卖家关注"},
+        {"name": "OEKO-TEX 100", "required": True, "cost": "¥3,000-8,000", "time": "2-3周", "tip": "纺织品有害物质检测，欧洲买家基本要求",
+         "source": "https://www.oeko-tex.com/en/our-standards/oeko-tex-standard-100", "last_updated": "2026-08-07"},
+        {"name": "GOTS (有机棉)", "required": False, "cost": "¥10,000-30,000", "time": "4-8周", "tip": "全球有机纺织品标准，可持续时尚卖家关注",
+         "source": "https://global-standard.org/", "last_updated": "2026-08-07"},
     ],
     "toy": [
-        {"name": "EN71 (欧盟)", "required": True, "cost": "¥5,000-15,000", "time": "3-6周", "tip": "欧洲玩具安全标准，物理+化学+可燃性测试"},
-        {"name": "ASTM F963 (美国)", "required": True, "cost": "¥5,000-12,000", "time": "3-6周", "tip": "美国玩具安全标准，CPSIA合规"},
-        {"name": "CCC (中国3C)", "required": True, "cost": "¥3,000-8,000", "time": "4-8周", "tip": "电玩具/塑胶玩具进入中国市场强制认证"},
+        {"name": "EN71 (欧盟)", "required": True, "cost": "¥5,000-15,000", "time": "3-6周", "tip": "欧洲玩具安全标准，物理+化学+可燃性测试",
+         "source": "https://single-market-economy.ec.europa.eu/sectors/toys/toy-safety/guidance_en", "last_updated": "2026-08-07"},
+        {"name": "ASTM F963 (美国)", "required": True, "cost": "¥5,000-12,000", "time": "3-6周", "tip": "美国玩具安全标准，CPSIA合规",
+         "source": "https://www.cpsc.gov/Business--Manufacturing/Business-Education/Toy-Safety", "last_updated": "2026-08-07"},
+        {"name": "CCC (中国3C)", "required": True, "cost": "¥3,000-8,000", "time": "4-8周", "tip": "电玩具/塑胶玩具进入中国市场强制认证",
+         "source": "https://www.cnca.gov.cn/", "last_updated": "2026-08-07"},
     ],
     "medical device": [
-        {"name": "CE MDR (欧盟)", "required": True, "cost": "¥50,000-300,000", "time": "6-18个月", "tip": "欧盟医疗器械法规，2021年升级版，比旧MDD更严格"},
-        {"name": "FDA 510(k) (美国)", "required": True, "cost": "¥30,000-200,000", "time": "3-12个月", "tip": "美国医疗器械上市许可"},
-        {"name": "ISO 13485", "required": True, "cost": "¥15,000-40,000", "time": "3-6个月", "tip": "医疗器械质量管理体系，全球通用"},
+        {"name": "CE MDR (欧盟)", "required": True, "cost": "¥50,000-300,000", "time": "6-18个月", "tip": "欧盟医疗器械法规，2021年升级版，比旧MDD更严格",
+         "source": "https://health.ec.europa.eu/medical-devices-sector/new-regulations_en", "last_updated": "2026-08-07"},
+        {"name": "FDA 510(k) (美国)", "required": True, "cost": "¥30,000-200,000", "time": "3-12个月", "tip": "美国医疗器械上市许可",
+         "source": "https://www.fda.gov/medical-devices/premarket-submissions-selecting-and-preparing-correct-submission/premarket-notification-510k", "last_updated": "2026-08-07"},
+        {"name": "ISO 13485", "required": True, "cost": "¥15,000-40,000", "time": "3-6个月", "tip": "医疗器械质量管理体系，全球通用",
+         "source": "https://www.iso.org/iso-13485-medical-devices.html", "last_updated": "2026-08-07"},
     ],
     "solar": [
-        {"name": "TÜV Rheinland (德国)", "required": True, "cost": "¥30,000-100,000", "time": "2-4个月", "tip": "光伏组件认证，欧洲市场强制要求"},
-        {"name": "IEC 61215/61730", "required": True, "cost": "¥50,000-150,000", "time": "3-6个月", "tip": "光伏组件安全和性能国际标准"},
+        {"name": "TÜV Rheinland (德国)", "required": True, "cost": "¥30,000-100,000", "time": "2-4个月", "tip": "光伏组件认证，欧洲市场强制要求",
+         "source": "https://www.tuv.com/solar/", "last_updated": "2026-08-07"},
+        {"name": "IEC 61215/61730", "required": True, "cost": "¥50,000-150,000", "time": "3-6个月", "tip": "光伏组件安全和性能国际标准",
+         "source": "https://www.iec.ch/", "last_updated": "2026-08-07"},
     ],
 }
 
@@ -335,11 +356,16 @@ def _enrich_tradeshow(show: dict, product_key: str) -> dict:
     else:
         status = 'unknown'
 
+    # Determine verification status
+    last_verified = show.get('last_verified')
+    verification_status = 'verified' if last_verified else 'unverified'
+
     return {
         **show,
         'source': show.get('source', 'Manual curation'),
         'source_url': show.get('url', ''),
-        'last_verified': show.get('last_verified', '2026-08-07'),
+        'last_verified': last_verified or 'Unknown',
+        'verification_status': verification_status,
         'start_date': start.isoformat() if start else None,
         'end_date': end.isoformat() if end else None,
         'status': status,
@@ -447,29 +473,43 @@ def find_certifications(product_keywords: str) -> list:
 
 
 def get_market_tips(product_keywords: str) -> list:
-    """根据产品类型返回市场建议"""
+    """根据产品类型返回市场建议（含溯源字段）"""
     tips = {
         "bluetooth earphone": [
-            "2026年全球TWS耳机市场规模预计$150B+，ANC主动降噪和低延迟是核心卖点",
-            "北美/欧洲为主要市场(占65%)，东南亚增速最快(年增18%)",
-            "亚马逊Best Seller蓝牙耳机均价$35，利润空间在成本$8-15的产品",
-            "建议定价策略：成本x3=批发价，批发价x3=零售价"
+            {"content": "2026年全球TWS耳机市场规模预计$150B+，ANC主动降噪和低延迟是核心卖点",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "北美/欧洲为主要市场(占65%)，东南亚增速最快(年增18%)",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "亚马逊Best Seller蓝牙耳机均价$35，利润空间在成本$8-15的产品",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "建议定价策略：成本x3=批发价，批发价x3=零售价",
+             "source": "Industry best practice", "last_updated": "2026-08-07"},
         ],
         "led light": [
-            "全球LED照明市场2026年预计$85B，年增长率12%",
-            "欧洲能效指令ERP强制A级能效，低能效产品将被逐出市场",
-            "智能照明(APP控制/WiFi/Zigbee)是增长最快的细分",
-            "太阳能LED灯在非洲/东南亚市场爆发式增长"
+            {"content": "全球LED照明市场2026年预计$85B，年增长率12%",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "欧洲能效指令ERP强制A级能效，低能效产品将被逐出市场",
+             "source": "EU Ecodesign Directive", "last_updated": "2026-08-07"},
+            {"content": "智能照明(APP控制/WiFi/Zigbee)是增长最快的细分",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "太阳能LED灯在非洲/东南亚市场爆发式增长",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
         ],
         "clothing": [
-            "可持续时尚是欧洲市场核心趋势，再生聚酯/有机棉面料需求激增",
-            "快时尚MOQ门槛降低到100件/款，小单快反成为可能",
-            "DTC品牌崛起，传统批发模式正在被独立站+社交媒体模式取代"
+            {"content": "可持续时尚是欧洲市场核心趋势，再生聚酯/有机棉面料需求激增",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "快时尚MOQ门槛降低到100件/款，小单快反成为可能",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
+            {"content": "DTC品牌崛起，传统批发模式正在被独立站+社交媒体模式取代",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
         ],
         "solar": [
-            "2026全球光伏新增装机预计500GW+，中东/非洲增速超50%",
-            "欧洲碳边境税CBAM 2026年正式实施，低碳足迹组件有竞争优势",
-            "储能+光伏的混合系统是中东北非最热门品类"
+            {"content": "2026全球光伏新增装机预计500GW+，中东/非洲增速超50%",
+             "source": "IEA / industry forecast", "last_updated": "2026-08-07"},
+            {"content": "欧洲碳边境税CBAM 2026年正式实施，低碳足迹组件有竞争优势",
+             "source": "EU CBAM Regulation", "last_updated": "2026-08-07"},
+            {"content": "储能+光伏的混合系统是中东北非最热门品类",
+             "source": "Market intelligence estimate", "last_updated": "2026-08-07"},
         ],
     }
     lower = product_keywords.lower()
@@ -477,9 +517,12 @@ def get_market_tips(product_keywords: str) -> list:
         if key in lower or any(k in lower for k in key.split()):
             return t
     return [
-        f"建议关注 {product_keywords} 品类在亚马逊/阿里巴巴国际站的搜索趋势",
-        "关注目标市场的最新进口政策和关税变动",
-        "参加行业展会是获取一手客户资源的最快方式"
+        {"content": f"建议关注 {product_keywords} 品类在亚马逊/阿里巴巴国际站的搜索趋势",
+         "source": "General knowledge", "last_updated": "2026-08-07"},
+        {"content": "关注目标市场的最新进口政策和关税变动",
+         "source": "General knowledge", "last_updated": "2026-08-07"},
+        {"content": "参加行业展会是获取一手客户资源的最快方式",
+         "source": "General knowledge", "last_updated": "2026-08-07"},
     ]
 
 

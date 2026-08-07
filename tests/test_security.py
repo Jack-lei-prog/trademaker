@@ -132,6 +132,51 @@ class TestJWTToken:
         assert resp.status_code == 401
 
 
+class TestChatEndpointAuth:
+
+    def test_chat_without_token_returns_401(self, client):
+        resp = client.post("/api/chat", json={"message": "hello"})
+        assert resp.status_code == 401
+
+    def test_chat_stream_without_token_returns_401(self, client):
+        resp = client.post("/api/chat/stream", json={"message": "hello"})
+        assert resp.status_code == 401
+
+    def test_upload_manual_without_token_returns_401(self, client):
+        resp = client.post("/api/upload/manual", data={})
+        assert resp.status_code == 401
+
+    def test_upload_excel_without_token_returns_401(self, client):
+        resp = client.post("/api/upload/excel", data={})
+        assert resp.status_code == 401
+
+    def test_clear_without_token_returns_401(self, client):
+        resp = client.post("/api/clear", json={})
+        assert resp.status_code == 401
+
+    def test_chat_with_valid_token_succeeds(self, client):
+        token = _register_and_login(client, "chat_auth@trade.com")
+        resp = client.post("/api/chat", json={"message": "help"},
+                           headers=_auth_headers(token))
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "reply" in data
+
+    def test_chat_stream_with_valid_token_succeeds(self, client):
+        token = _register_and_login(client, "stream_auth@trade.com")
+        resp = client.post("/api/chat/stream", json={"message": "help"},
+                           headers=_auth_headers(token))
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.content_type
+
+    def test_clear_with_valid_token_succeeds(self, client):
+        token = _register_and_login(client, "clear_auth@trade.com")
+        resp = client.post("/api/clear", json={},
+                           headers=_auth_headers(token))
+        assert resp.status_code == 200
+        assert resp.get_json()["success"]
+
+
 class TestSMTPEncryption:
 
     def test_roundtrip_encrypt_decrypt(self):

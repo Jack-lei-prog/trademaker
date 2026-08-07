@@ -523,6 +523,66 @@ def get_due_reminders(user_email: str) -> list:
 
 
 # ============================================================
+# 邮件审计日志
+# ============================================================
+
+def log_email_audit(draft_id, user_email, to_email, subject, body_preview,
+                    idempotency_key, success, error=None):
+    """记录邮件发送审计日志到 KV 存储"""
+    record = {
+        "user_email": user_email,
+        "confirmed_at": _now(),
+        "to_email": to_email,
+        "subject": subject,
+        "body_snapshot": body_preview[:500],
+        "idempotency_key": idempotency_key,
+        "success": success,
+        "error": error,
+    }
+    ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    kv_set(f"email_audit:{ts}:{draft_id}", record)
+
+
+def get_email_audit_logs(user_email=None, limit=50):
+    """查询邮件审计日志（可按用户过滤）"""
+    conn = _get_conn()
+    prefix = "email_audit:"
+    rows = _execute_with_retry(conn,
+        "SELECT key FROM kv_store WHERE key LIKE ? ORDER BY key DESC LIMIT ?",
+        (f"{prefix}%", limit)
+    ).fetchall()
+    logs = []
+    for r in rows:
+        record = kv_get(r["key"])
+        if record and (user_email is None or record.get("user_email") == user_email):
+            logs.append(record)
+    return logs
+
+
+# ============================================================
+# 退订管理
+# ============================================================
+
+def is_unsubscribed(email):
+    """检查邮箱是否已退订"""
+    return kv_get(f"unsub:{email.lower().strip()}") is not None
+
+
+def add_unsubscribe(email, reason=""):
+    """添加退订记录"""
+    kv_set(f"unsub:{email.lower().strip()}", {
+        "email": email.lower().strip(),
+        "reason": reason,
+        "unsubscribed_at": _now(),
+    })
+
+
+def remove_unsubscribe(email):
+    """移除退订记录（用户重新订阅）"""
+    kv_delete(f"unsub:{email.lower().strip()}")
+
+
+# ============================================================
 # 初始化
 # ============================================================
 

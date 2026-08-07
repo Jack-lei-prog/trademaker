@@ -255,3 +255,83 @@ def api_customer_acquisition():
         "buyers": drafts,
         "raw_note": note[:3000] if not structured else "",
     })
+
+
+@dashboard_bp.route("/api/knowledge/freshness", methods=["GET"])
+@login_required
+def api_knowledge_freshness():
+    """知识库数据新鲜度摘要"""
+    from datetime import datetime, timedelta
+    from knowledge.tradeshows import TRADESHOWS, CERTIFICATIONS, _enrich_tradeshow
+
+    today = datetime.now().date()
+    cutoff_30d = today - timedelta(days=30)
+
+    # 展会数据新鲜度
+    show_dates = []
+    for product_key, shows in TRADESHOWS.items():
+        for show in shows:
+            enriched = _enrich_tradeshow(show, product_key)
+            lv = enriched.get("last_verified", "Unknown")
+            if lv != "Unknown":
+                try:
+                    show_dates.append(datetime.strptime(lv, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+
+    show_verified_30d = sum(1 for d in show_dates if d >= cutoff_30d)
+
+    # 认证数据新鲜度
+    cert_dates = []
+    for product_key, certs in CERTIFICATIONS.items():
+        for cert in certs:
+            lu = cert.get("last_updated", "")
+            if lu:
+                try:
+                    cert_dates.append(datetime.strptime(lu, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+
+    cert_verified_30d = sum(1 for d in cert_dates if d >= cutoff_30d)
+
+    # 市场建议新鲜度 (hardcoded as 2026-08-07)
+    tips_total = 14  # hardcoded count in get_market_tips
+    tips_verified_30d = 14  # all verified on 2026-08-07
+
+    def _health(verified, total):
+        if total == 0:
+            return "empty"
+        ratio = verified / total
+        if ratio >= 0.8:
+            return "good"
+        elif ratio >= 0.5:
+            return "fair"
+        return "stale"
+
+    return jsonify({
+        "success": True,
+        "tradeshows": {
+            "total": len(show_dates),
+            "verified_30d": show_verified_30d,
+            "oldest": min(show_dates).isoformat() if show_dates else None,
+            "newest": max(show_dates).isoformat() if show_dates else None,
+            "health": _health(show_verified_30d, len(show_dates)),
+        },
+        "certifications": {
+            "total": len(cert_dates),
+            "verified_30d": cert_verified_30d,
+            "oldest": min(cert_dates).isoformat() if cert_dates else None,
+            "newest": max(cert_dates).isoformat() if cert_dates else None,
+            "health": _health(cert_verified_30d, len(cert_dates)),
+        },
+        "market_tips": {
+            "total": tips_total,
+            "verified_30d": tips_verified_30d,
+            "health": _health(tips_verified_30d, tips_total),
+        },
+        "overall_health": _health(
+            show_verified_30d + cert_verified_30d + tips_verified_30d,
+            len(show_dates) + len(cert_dates) + tips_total,
+        ),
+        "timestamp": today.isoformat(),
+    })

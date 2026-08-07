@@ -83,7 +83,7 @@ from user_service import (
 # ============================================================
 from tools import TOOL_FUNCTIONS, TOOL_DESCRIPTIONS
 from prompt_service import build_system_prompt
-from agents import AGENTS, detect_intent, get_agent_tools, detect_intents, MULTI_AGENT_PROMPT
+from agents import AGENTS, detect_intents, get_task_agents, get_agent_tools, MULTI_AGENT_PROMPT
 
 # ============================================================
 # 工具调用
@@ -297,24 +297,39 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
     messages.append({"role": "user", "content": user_input})
     db.append_message(ue, sid, "user", user_input)
 
-    # 多Agent: 检测意图，选择工具子集
-    intent_agent = detect_intent(user_input) if use_tools else "coordinator"
-    agent_tools = get_agent_tools(intent_agent) if use_tools else None
-    agent_info = AGENTS.get(intent_agent, AGENTS["coordinator"])
-    _task_max_iterations = MAX_ITERATIONS
+    # 多Agent: 检测全部意图，生成任务计划
+    intents = detect_intents(user_input) if use_tools else [("coordinator", "", 0)]
+    task_plan = get_task_agents(user_input) if use_tools else [
+        {"agent_id": "coordinator", "agent_name": "协调者", "agent_emoji": "🎯", "step": 1, "description": user_input[:80]}]
+    effective_max_iterations = min(len(task_plan) + 2, 8) if use_tools else MAX_ITERATIONS
+
+    # 初始 Agent
+    current_agent_id = intents[0][0]
+    agent_tools = get_agent_tools(current_agent_id) if use_tools else None
+    agent_info = AGENTS.get(current_agent_id, AGENTS["coordinator"])
 
     iteration = 0
     tool_calls_log = []
 
-    while iteration < _task_max_iterations:
+    while iteration < effective_max_iterations:
         iteration += 1
+        # 按意图顺序切换 Agent：每次迭代切换工具子集
+        intent_idx = min(iteration - 1, len(intents) - 1)
+        new_agent_id = intents[intent_idx][0]
+        if new_agent_id != current_agent_id:
+            current_agent_id = new_agent_id
+            agent_tools = get_agent_tools(current_agent_id) if use_tools else None
+            agent_info = AGENTS.get(current_agent_id, AGENTS["coordinator"])
+
         response = call_synscale(messages, tools=agent_tools if use_tools else None)
         if "error" in response:
             error_msg = f"抱歉，发生了错误：{response.get('message', 'Unknown error')}"
             messages.append({"role": "assistant", "content": error_msg})
             db.append_message(ue, sid, "assistant", error_msg)
             return {"reply": error_msg, "tool_calls": tool_calls_log,
-                    "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "llm_error")}
+                    "agent_meta": _agent_meta(current_agent_id, agent_info, agent_tools, iteration, tool_calls_log, "llm_error"),
+                    "task_plan": task_plan,
+                    "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
         choices = response.get("choices", [])
         if not choices:
@@ -322,7 +337,9 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
             messages.append({"role": "assistant", "content": error_msg})
             db.append_message(ue, sid, "assistant", error_msg)
             return {"reply": error_msg, "tool_calls": tool_calls_log,
-                    "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "no_choices")}
+                    "agent_meta": _agent_meta(current_agent_id, agent_info, agent_tools, iteration, tool_calls_log, "no_choices"),
+                    "task_plan": task_plan,
+                    "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
         message = choices[0].get("message", {})
         assistant_content = message.get("content", "")
@@ -346,9 +363,8 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
         else:
             messages.append({"role": "assistant", "content": assistant_content})
             db.append_message(ue, sid, "assistant", assistant_content)
-            task_plan = [{"agent_id": aid, "agent_name": AGENTS.get(aid,{}).get("name","?"), "step": i+1} for i, (aid, kw, p) in enumerate(intents)]
             return {"reply": assistant_content, "tool_calls": tool_calls_log,
-                    "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "completed"),
+                    "agent_meta": _agent_meta(current_agent_id, agent_info, agent_tools, iteration, tool_calls_log, "completed"),
                     "task_plan": task_plan,
                     "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
@@ -356,7 +372,9 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
     messages.append({"role": "assistant", "content": timeout_msg})
     db.append_message(ue, sid, "assistant", timeout_msg)
     return {"reply": timeout_msg, "tool_calls": tool_calls_log,
-            "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, _task_max_iterations, tool_calls_log, "timeout")}
+            "agent_meta": _agent_meta(current_agent_id, agent_info, agent_tools, effective_max_iterations, tool_calls_log, "timeout"),
+            "task_plan": task_plan,
+            "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
 def run_agent_stream(user_input, session_id="default", use_tools=True, user_email=None):
     sid = user_email or session_id or "default"
@@ -370,19 +388,37 @@ def run_agent_stream(user_input, session_id="default", use_tools=True, user_emai
     messages.append({"role": "user", "content": user_input})
     db.append_message(ue, sid, "user", user_input)
 
-    # 多Agent: 检测意图
-    intent_agent = detect_intent(user_input) if use_tools else "coordinator"
-    agent_tools = get_agent_tools(intent_agent) if use_tools else None
-    agent_info = AGENTS.get(intent_agent, AGENTS["coordinator"])
-    _task_max_iterations = MAX_ITERATIONS
+    # 多Agent: 检测全部意图，生成任务计划
+    intents = detect_intents(user_input) if use_tools else [("coordinator", "", 0)]
+    task_plan = get_task_agents(user_input) if use_tools else [
+        {"agent_id": "coordinator", "agent_name": "协调者", "agent_emoji": "🎯", "step": 1, "description": user_input[:80]}]
+    effective_max_iterations = min(len(task_plan) + 2, 8) if use_tools else MAX_ITERATIONS
+
+    # 初始 Agent
+    current_agent_id = intents[0][0]
+    agent_tools = get_agent_tools(current_agent_id) if use_tools else None
+    agent_info = AGENTS.get(current_agent_id, AGENTS["coordinator"])
 
     iteration = 0
     total_tool_count = 0
+    yield {"type": "task_plan", "data": task_plan}
     yield {"type": "agent", "agent": f"{agent_info['emoji']} {agent_info['name']}",
            "message": f"{agent_info['emoji']} {agent_info['name']} 正在处理..."}
 
-    while iteration < MAX_ITERATIONS:
+    while iteration < effective_max_iterations:
         iteration += 1
+        # 按意图顺序切换 Agent
+        intent_idx = min(iteration - 1, len(intents) - 1)
+        new_agent_id = intents[intent_idx][0]
+        if new_agent_id != current_agent_id:
+            prev_agent_name = AGENTS.get(current_agent_id, {}).get("name", "?")
+            current_agent_id = new_agent_id
+            agent_tools = get_agent_tools(current_agent_id) if use_tools else None
+            agent_info = AGENTS.get(current_agent_id, AGENTS["coordinator"])
+            yield {"type": "agent_switch",
+                   "data": {"from": prev_agent_name, "to": agent_info["name"], "to_emoji": agent_info["emoji"]},
+                   "message": f"→ {agent_info['emoji']} {agent_info['name']} 接手"}
+
         full_content = ""
         tool_call_chunks = {}
 
@@ -426,11 +462,12 @@ def run_agent_stream(user_input, session_id="default", use_tools=True, user_emai
                 yield {"type": "tool_result", "tool": tool_name, "result": parsed, "step": total_tool_count, "total_steps": len(tool_calls), "round": iteration}
                 messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": tool_result})
                 db.append_message(ue, sid, "tool", tool_result, tool_call_id=tool_call_id)
-            if iteration < MAX_ITERATIONS:
+            if iteration < effective_max_iterations:
                 yield {"type": "thinking", "message": "正在综合信息生成回复..."}
         else:
             messages.append({"role": "assistant", "content": full_content})
             db.append_message(ue, sid, "assistant", full_content)
+            yield {"type": "meta", "data": _agent_meta(current_agent_id, agent_info, agent_tools, iteration, [], "completed")}
             return
     yield {"type": "error", "message": "处理超时，请简化问题后重试"}
 

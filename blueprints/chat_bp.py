@@ -1,6 +1,7 @@
 """聊天 Blueprint — /api/chat, /api/chat/stream, /api/clear, /"""
-from flask import Blueprint, render_template, request, jsonify, Response
+from flask import Blueprint, render_template, request, jsonify, Response, g
 from security import rate_limit
+from auth_middleware import login_required
 from services import _safe_str, _needs_tools, run_agent, run_agent_stream
 import db
 import json
@@ -14,11 +15,12 @@ def index():
 
 
 @chat_bp.route("/api/chat", methods=["POST"])
+@login_required
 @rate_limit(max_requests=30, window=60)
 def chat():
     data = request.get_json()
     user_input = _safe_str(data.get("message")).strip()
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     session_id = user_email or _safe_str(data.get("session_id")) or "default"
 
     if not user_input:
@@ -39,10 +41,12 @@ def chat():
 
 
 @chat_bp.route("/api/chat/stream", methods=["POST"])
+@login_required
+@rate_limit(max_requests=30, window=60)
 def chat_stream():
     data = request.get_json()
     user_input = _safe_str(data.get("message")).strip()
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     session_id = user_email or _safe_str(data.get("session_id")) or "default"
 
     if not user_input:
@@ -77,11 +81,12 @@ def chat_stream():
 
 
 @chat_bp.route("/api/clear", methods=["POST"])
+@login_required
+@rate_limit(max_requests=10, window=60)
 def clear_chat():
     data = request.get_json() or {}
-    session_id = _safe_str(data.get("session_id")) or "default"
-    user_email = _safe_str(data.get("user_email"))
-    db.delete_session(user_email=user_email, session_id=session_id)
+    session_id = _safe_str(data.get("session_id")) or g.user_email or "default"
+    db.delete_session(user_email=g.user_email, session_id=session_id)
     return jsonify({"success": True})
 
 
@@ -153,9 +158,9 @@ def api_docs():
         "endpoints": [
             {"method": "POST", "path": "/api/register", "desc": "用户注册", "auth": False},
             {"method": "POST", "path": "/api/login", "desc": "用户登录", "auth": False},
-            {"method": "POST", "path": "/api/chat", "desc": "AI对话 (同步)", "auth": False, "stream": False},
-            {"method": "POST", "path": "/api/chat/stream", "desc": "AI对话 (SSE流式)", "auth": False, "stream": True},
-            {"method": "POST", "path": "/api/clear", "desc": "清空会话", "auth": False},
+            {"method": "POST", "path": "/api/chat", "desc": "AI对话 (同步)", "auth": True, "stream": False},
+            {"method": "POST", "path": "/api/chat/stream", "desc": "AI对话 (SSE流式)", "auth": True, "stream": True},
+            {"method": "POST", "path": "/api/clear", "desc": "清空会话", "auth": True},
             {"method": "GET", "path": "/api/health", "desc": "健康检查+API状态", "auth": False},
             {"method": "GET", "path": "/api/docs", "desc": "本API文档", "auth": False},
             {"method": "GET", "path": "/api/demo/help", "desc": "演示指南", "auth": False},
@@ -192,12 +197,13 @@ def api_docs():
 
 
 @chat_bp.route("/api/upload/manual", methods=["POST"])
+@login_required
 @rate_limit(max_requests=10, window=300)
 def upload_manual():
     """上传产品手册（PDF/DOCX/TXT），提取文本存入会话"""
     import os, tempfile
     file = request.files.get("file")
-    user_email = request.form.get("user_email", "").strip().lower()
+    user_email = g.user_email
     session_id = request.form.get("session_id", user_email or "default")
 
     if not file:
@@ -254,12 +260,13 @@ def upload_manual():
 
 
 @chat_bp.route("/api/upload/excel", methods=["POST"])
+@login_required
 @rate_limit(max_requests=10, window=300)
 def upload_excel():
     """上传厂家Excel表格，解析出厂家列表"""
     import io, os as _os
     file = request.files.get("file")
-    user_email = request.form.get("user_email", "").strip().lower()
+    user_email = g.user_email
 
     if not file:
         return jsonify({"success": False, "error": "请选择文件"}), 400
@@ -271,7 +278,7 @@ def upload_excel():
 
     ext = _os.path.splitext(file.filename or "list.xlsx")[1].lower()
     if ext not in (".xlsx", ".xls"):
-        return jsonify({"success": False, "error": f"不支持{wxt}，请上传 .xlsx 格式"}), 400
+        return jsonify({"success": False, "error": f"不支持{ext}，请上传 .xlsx 格式"}), 400
 
     try:
         from openpyxl import load_workbook
@@ -332,9 +339,9 @@ def upload_excel():
 
         # 存入会话
         import db as _db
-        metadata = _db.get_session_metadata(user_email or "", user_email or "default")
+        metadata = _db.get_session_metadata(user_email, user_email or "default")
         metadata["excel_companies"] = companies
-        _db.update_session_metadata(user_email or "", user_email or "default", metadata)
+        _db.update_session_metadata(user_email, user_email or "default", metadata)
 
         return jsonify({
             "success": True,

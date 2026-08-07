@@ -1,5 +1,5 @@
 """
-多 Agent 协作系统 — 4 个专业 Agent + 1 个协调者
+多 Agent 协作系统 — 5 个专业 Agent + 1 个协调者
 """
 from tools import TOOL_DESCRIPTIONS, TOOL_FUNCTIONS
 
