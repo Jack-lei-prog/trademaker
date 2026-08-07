@@ -1,19 +1,23 @@
-# Render Blueprint — 一键部署配置
-# 文档: https://render.com/docs/blueprint-spec
+# Render Blueprint / 腾讯云手动部署配置
+# Render: https://render.com/docs/blueprint-spec
 
 services:
   - type: web
     name: trademaker
     runtime: python
-    region: singapore  # 新加坡（亚洲访问最快）
+    region: singapore
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers=2 --timeout=120
     envVars:
       - key: FLASK_DEBUG
         value: "0"
+      - key: SECRET_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://your-domain.com"
       - key: LLM_API_KEY
-        sync: false  # 敏感信息，需手动设置
+        sync: false
       - key: LLM_API_URL
         value: https://api.moonshot.cn/v1/chat/completions
       - key: LLM_MODEL
