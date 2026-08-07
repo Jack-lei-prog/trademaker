@@ -20,6 +20,10 @@ else:
     load_dotenv()
 
 app = Flask(__name__)
+
+# 安全密钥（config.py 已校验，缺失则启动失败）
+from config import SECRET_KEY
+app.secret_key = SECRET_KEY
 log = get_logger()
 
 # 注册应用关闭钩子
@@ -34,14 +38,10 @@ except Exception as _e:
     logging.getLogger("TradeMaster").warning(f"Demo init skipped: {_e}")
 
 # ============================================================
-# CORS 白名单（生产环境允许所有来源）
+# CORS — 始终使用显式白名单（从 CORS_ORIGINS 环境变量读取）
 # ============================================================
-_is_dev = _os.getenv("FLASK_DEBUG", "0") == "1"
-ALLOWED_ORIGINS = {
-    "http://127.0.0.1:5000",
-    "http://localhost:5000",
-    "http://192.168.1.100:5000",
-} if _is_dev else None  # None = allow all origins in production
+from config import CORS_ORIGINS
+ALLOWED_ORIGINS = CORS_ORIGINS
 
 
 # ============================================================
@@ -54,19 +54,51 @@ def _before_request():
     g.request_id = uuid.uuid4().hex[:12]
 
 
+@app.before_request
+def _handle_preflight():
+    """处理 OPTIONS 预检请求"""
+    if request.method == "OPTIONS":
+        resp = app.make_default_options_response()
+        origin = request.headers.get("Origin", "")
+        if origin in ALLOWED_ORIGINS:
+            resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        resp.headers["Access-Control-Max-Age"] = "3600"
+        return resp
+
+
 @app.after_request
 def _after_request(response):
-    # CORS 头
+    # CORS 头（始终使用显式白名单）
     origin = request.headers.get("Origin", "")
-    if ALLOWED_ORIGINS is None:
-        # 生产环境：允许所有来源
-        response.headers["Access-Control-Allow-Origin"] = origin or "*"
-    elif origin in ALLOWED_ORIGINS or not origin:
-        response.headers["Access-Control-Allow-Origin"] = origin or "*"
-    else:
-        pass  # 拒绝未授权来源
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    elif not origin:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    # 非白名单来源：不设 CORS 头，浏览器将拒绝
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+
+    # 安全响应头
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # CSP（前端为单文件 index.html，允许内联脚本和 CDN）
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https:; "
+        "font-src 'self' https://cdn.jsdelivr.net"
+    )
+
+    # HSTS（生产环境建议开启）
+    if not __import__('os').getenv("FLASK_DEBUG", "0") == "1":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
     # 请求 ID
     req_id = getattr(g, "request_id", "")

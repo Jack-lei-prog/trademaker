@@ -20,6 +20,8 @@ from data_sources import (
     get_company_detail_opencorp,
     call_llm,
     _expand_trade_terms,
+    enrich_result,
+    DATA_SOURCE_STATUS,
 )
 from cache import cached
 
@@ -108,8 +110,17 @@ def search_buyers(keyword: str) -> str:
     linkedin_url = f"https://www.linkedin.com/search/results/people/?keywords={keyword_encoded}%20buyer%20OR%20purchasing%20OR%20sourcing"
     google_url = f"https://www.google.com/search?q={keyword_encoded}+importer+OR+distributor+OR+wholesaler+email"
 
+    # 数据源降级警告
+    degraded_sources = [k for k, v in DATA_SOURCE_STATUS.items() if v != "ok"]
+    degradation_warning = ""
+    if degraded_sources:
+        degradation_warning = (
+            f"\n\n⚠️ 部分数据源暂时不可用: {', '.join(degraded_sources)}。"
+            f"结果可能不完整，建议稍后重试或使用其他搜索词。"
+        )
+
     base_note = (
-        f"数据库匹配结果有限（结构化为0条）。你必须提供可操作的替代联系路径，而非编造邮箱。\n\n"
+        f"数据库匹配结果有限（结构化为{len(buyers)}条）。你必须提供可操作的替代联系路径，而非编造邮箱。\n\n"
         f"## 产品: {keyword}\n\n"
         f"### 可选路径（每条都给具体链接）\n"
         f"1. 🛒 Alibaba RFQ: {alibaba_rfq_url}\n"
@@ -124,8 +135,9 @@ def search_buyers(keyword: str) -> str:
         f"- 如果无法验证邮箱 → 明确说\"无公开邮箱，建议通过LinkedIn联系其采购经理\"\n"
         f"- 禁止编造邮箱！宁缺毋滥！\n\n"
         f"格式：序号. 公司名 🇺🇸 — site.com | 采购类型 | 联系途径（LinkedIn/Alibaba/展会/供应商门户）"
-    )
+    ) + degradation_warning
 
+    from datetime import timezone as _tz
     return json.dumps({
         "success": True,
         "keyword": keyword,
@@ -133,6 +145,7 @@ def search_buyers(keyword: str) -> str:
         "structured_results": buyers,
         "search_terms_used": trade_terms[:5],
         "note": base_note,
+        "fetched_at": datetime.now(_tz.utc).isoformat(),
     }, ensure_ascii=False, indent=2)
 
 

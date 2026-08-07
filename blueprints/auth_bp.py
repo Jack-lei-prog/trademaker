@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 from security import rate_limit, validate_input
 from user_service import _safe_str, _load_users, _save_users, get_user, _hash_password, authenticate_user
+from auth_middleware import create_token
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -54,7 +55,8 @@ def register():
     }
     users[email] = user
     _save_users(users)
-    return jsonify({"success": True, "user": _sanitize_user(user)})
+    token = create_token(email)
+    return jsonify({"success": True, "user": _sanitize_user(user), "token": token})
 
 
 @auth_bp.route("/api/login", methods=["POST"])
@@ -67,20 +69,6 @@ def login():
     if not email or not password:
         return jsonify({"success": False, "error": "请输入邮箱和密码"}), 400
 
-    # Demo账号自动修复：如果不存在则自动创建
-    if email == "demo@trademaster.com" and password == "demo2024":
-        users = _load_users()
-        if email not in users:
-            now = datetime.now().strftime("%Y-%m-%d %H:%M")
-            users[email] = {
-                "email": email, "phone": "13800138001",
-                "company": "深圳声海科技有限公司", "product": "bluetooth earphone",
-                "identity": "seller",
-                "password_hash": _hash_password(password),
-                "registered_at": now, "last_login": now
-            }
-            _save_users(users)
-
     user = authenticate_user(email, password)
     if not user:
         return jsonify({"success": False, "error": "邮箱或密码错误"}), 401
@@ -91,4 +79,5 @@ def login():
     users[email] = user
     _save_users(users)
 
-    return jsonify({"success": True, "user": _sanitize_user(user)})
+    token = create_token(email)
+    return jsonify({"success": True, "user": _sanitize_user(user), "token": token})

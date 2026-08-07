@@ -21,6 +21,16 @@ http_session = requests.Session()
 http_session.trust_env = False  # 绕过系统代理直连API
 MAX_ITERATIONS = 3
 
+def _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, stop_reason="completed"):
+    """Agent observability metadata"""
+    tn = []
+    if agent_tools and isinstance(agent_tools,list) and agent_tools and isinstance(agent_tools[0],dict):
+        tn = [t["function"]["name"] for t in agent_tools]
+    return dict(agent_id=intent_agent,agent_name=agent_info.get("name","?"),
+        agent_emoji=agent_info.get("emoji","?"),agent_role=agent_info.get("role","?"),
+        selected_tools=tn,tool_calls_count=len(tool_calls_log),
+        total_iterations=iteration,stop_reason=stop_reason)
+
 def _build_providers():
     """从环境变量构建 API 提供商列表"""
     providers = []
@@ -302,14 +312,16 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
             error_msg = f"抱歉，发生了错误：{response.get('message', 'Unknown error')}"
             messages.append({"role": "assistant", "content": error_msg})
             db.append_message(ue, sid, "assistant", error_msg)
-            return {"reply": error_msg, "tool_calls": tool_calls_log}
+            return {"reply": error_msg, "tool_calls": tool_calls_log,
+                    "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "llm_error")}
 
         choices = response.get("choices", [])
         if not choices:
             error_msg = "抱歉，未能获取回复"
             messages.append({"role": "assistant", "content": error_msg})
             db.append_message(ue, sid, "assistant", error_msg)
-            return {"reply": error_msg, "tool_calls": tool_calls_log}
+            return {"reply": error_msg, "tool_calls": tool_calls_log,
+                    "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "no_choices")}
 
         message = choices[0].get("message", {})
         assistant_content = message.get("content", "")
@@ -334,12 +346,14 @@ def run_agent(user_input, session_id="default", use_tools=True, user_email=None)
             messages.append({"role": "assistant", "content": assistant_content})
             db.append_message(ue, sid, "assistant", assistant_content)
             return {"reply": assistant_content, "tool_calls": tool_calls_log,
+                    "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "completed"),
                     "agent": f"{agent_info['emoji']} {agent_info['name']}"}
 
     timeout_msg = "抱歉，处理超时，请简化您的问题后重试"
     messages.append({"role": "assistant", "content": timeout_msg})
     db.append_message(ue, sid, "assistant", timeout_msg)
-    return {"reply": timeout_msg, "tool_calls": tool_calls_log}
+    return {"reply": timeout_msg, "tool_calls": tool_calls_log,
+            "agent_meta": _agent_meta(intent_agent, agent_info, agent_tools, iteration, tool_calls_log, "timeout")}
 
 def run_agent_stream(user_input, session_id="default", use_tools=True, user_email=None):
     sid = user_email or session_id or "default"

@@ -1,5 +1,7 @@
 """仪表盘 Blueprint — /api/dashboard, /api/preferences"""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
+from security import rate_limit
+from auth_middleware import login_required
 from user_service import _safe_str, get_user
 import db
 import json
@@ -8,10 +10,11 @@ dashboard_bp = Blueprint("dashboard", __name__)
 
 
 @dashboard_bp.route("/api/workflow/status", methods=["POST"])
+@login_required
 def api_workflow_status():
     """4阶段跨境贸易工作流状态"""
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     if not user_email:
         return jsonify({"success": False, "error": "请先登录"}), 400
 
@@ -32,10 +35,11 @@ def api_workflow_status():
 
 
 @dashboard_bp.route("/api/workflow/update", methods=["POST"])
+@login_required
 def api_workflow_update():
     """更新工作流阶段"""
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     stage = data.get("stage", 1)
     if not user_email:
         return jsonify({"success": False, "error": "请先登录"}), 400
@@ -54,10 +58,11 @@ def api_workflow_update():
 
 
 @dashboard_bp.route("/api/preferences", methods=["POST"])
+@login_required
 def api_preferences():
     """获取或更新用户偏好（跨会话记忆）"""
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
 
     if not user_email:
         return jsonify({"success": False, "error": "请先登录"}), 400
@@ -84,10 +89,11 @@ def api_preferences():
 
 
 @dashboard_bp.route("/api/dashboard", methods=["POST"])
+@login_required
 def api_dashboard():
     """返回用户仪表盘数据：展销会、认证要求、市场洞察"""
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
 
     if not user_email:
         return jsonify({"success": False, "error": "请先登录"}), 400
@@ -141,6 +147,8 @@ def api_dashboard():
 
 
 @dashboard_bp.route("/api/customer-acquisition", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
 def api_customer_acquisition():
     """一键获客工作流：搜索买家 → 生成开发信 → 保存到联系人"""
     import json as _json
@@ -148,7 +156,7 @@ def api_customer_acquisition():
     import time as _time
 
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     keyword = _safe_str(data.get("keyword")).strip()
     target_market = _safe_str(data.get("target_market")).strip()  # 目标国家，可选
     max_results = data.get("max_results", 10)

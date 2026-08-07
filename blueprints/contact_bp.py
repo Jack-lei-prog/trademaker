@@ -1,6 +1,7 @@
 """客户联系管理 Blueprint — /api/contacts/*"""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from security import rate_limit
+from auth_middleware import login_required
 from user_service import _safe_str
 import db
 
@@ -12,9 +13,10 @@ CONTACT_STATUSES = ["pending", "contacted", "replied", "negotiating", "ordered",
 
 @contact_bp.route("/api/contacts/add", methods=["POST"])
 @rate_limit(max_requests=30, window=60)
+@login_required
 def api_add_contact():
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     company_name = _safe_str(data.get("company_name")).strip()
     email = _safe_str(data.get("email")).strip()
     website = _safe_str(data.get("website")).strip()
@@ -44,9 +46,10 @@ def api_add_contact():
 
 
 @contact_bp.route("/api/contacts/list", methods=["POST"])
+@login_required
 def api_list_contacts():
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     status = _safe_str(data.get("status")).strip()
     if not user_email:
         return jsonify({"success": False, "error": "请先登录"}), 400
@@ -62,9 +65,10 @@ def api_list_contacts():
 
 
 @contact_bp.route("/api/contacts/update", methods=["POST"])
+@login_required
 def api_update_contact():
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     contact_id = data.get("contact_id")
     if not user_email or not contact_id:
         return jsonify({"success": False, "error": "缺少参数"}), 400
@@ -86,9 +90,10 @@ def api_update_contact():
 
 
 @contact_bp.route("/api/contacts/delete", methods=["POST"])
+@login_required
 def api_delete_contact():
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     contact_id = data.get("contact_id")
     if not user_email or not contact_id:
         return jsonify({"success": False, "error": "缺少参数"}), 400
@@ -97,9 +102,10 @@ def api_delete_contact():
 
 
 @contact_bp.route("/api/contacts/stats", methods=["POST"])
+@login_required
 def api_contact_stats():
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).strip().lower()
+    user_email = g.user_email
     if not user_email:
         return jsonify({"success": False, "error": "请先登录"}), 400
     all_contacts = db.get_contacts(user_email)

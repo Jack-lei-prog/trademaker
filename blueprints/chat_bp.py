@@ -112,6 +112,10 @@ def health():
         statuses = {p["name"]: "reset" for p in LLM_PROVIDERS}
     checks["llm_api"] = {"providers": len(LLM_PROVIDERS), "detail": statuses}
 
+    # 数据源状态检查
+    from data_sources import DATA_SOURCE_STATUS
+    checks["data_sources"] = dict(DATA_SOURCE_STATUS)
+
     # 磁盘检查
     try:
         stat = _os.statvfs(".") if hasattr(_os, "statvfs") else None
@@ -132,7 +136,8 @@ def demo_help():
     from knowledge.demo import DEMO_HELP, DEMO_SCENARIOS
     return jsonify({
         "success": True,
-        "demo_account": {"email": "demo@trademaster.com", "password": "demo2024"},
+        "demo_account_email": "demo@trademaster.com",
+        "demo_account_hint": "密码为 'demo2024'（仅演示环境），请访问登录页面使用该账号体验",
         "scenarios": DEMO_SCENARIOS,
         "help_text": DEMO_HELP,
     })
@@ -187,6 +192,7 @@ def api_docs():
 
 
 @chat_bp.route("/api/upload/manual", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
 def upload_manual():
     """上传产品手册（PDF/DOCX/TXT），提取文本存入会话"""
     import os, tempfile
@@ -196,6 +202,13 @@ def upload_manual():
 
     if not file:
         return jsonify({"success": False, "error": "请选择文件"}), 400
+
+    # 文件大小限制 10MB
+    file_content = file.read()
+    if len(file_content) > 10 * 1024 * 1024:
+        return jsonify({"success": False, "error": "文件大小不能超过 10MB"}), 400
+    from io import BytesIO
+    file = BytesIO(file_content)  # 供下游 PdfReader 使用
 
     # 保存临时文件
     ext = os.path.splitext(file.filename or "manual.pdf")[1].lower()
@@ -207,7 +220,7 @@ def upload_manual():
         if ext == ".pdf":
             from PyPDF2 import PdfReader
             import io
-            reader = PdfReader(io.BytesIO(file.read()))
+            reader = PdfReader(file)
             for page in reader.pages:
                 t = page.extract_text()
                 if t: text += t + "\n"
@@ -241,6 +254,7 @@ def upload_manual():
 
 
 @chat_bp.route("/api/upload/excel", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
 def upload_excel():
     """上传厂家Excel表格，解析出厂家列表"""
     import io, os as _os
@@ -250,13 +264,18 @@ def upload_excel():
     if not file:
         return jsonify({"success": False, "error": "请选择文件"}), 400
 
+    # 文件大小限制 10MB
+    file_content = file.read()
+    if len(file_content) > 10 * 1024 * 1024:
+        return jsonify({"success": False, "error": "文件大小不能超过 10MB"}), 400
+
     ext = _os.path.splitext(file.filename or "list.xlsx")[1].lower()
     if ext not in (".xlsx", ".xls"):
         return jsonify({"success": False, "error": f"不支持{wxt}，请上传 .xlsx 格式"}), 400
 
     try:
         from openpyxl import load_workbook
-        wb = load_workbook(io.BytesIO(file.read()), read_only=True)
+        wb = load_workbook(io.BytesIO(file_content), read_only=True)
         ws = wb.active
 
         # 读取表头（第一行）

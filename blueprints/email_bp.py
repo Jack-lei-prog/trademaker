@@ -1,7 +1,9 @@
-"""邮件 Blueprint — send_email, emails/*, email/*"""
+"""邮件 Blueprint — send_email, emails/*, email/*（含两阶段确认发送）"""
 import json
-from flask import Blueprint, request, jsonify, Response
+import uuid
+from flask import Blueprint, request, jsonify, Response, g
 from security import rate_limit
+from auth_middleware import login_required
 from email_tracker import record_open, TRACKING_GIF, classify_intent, classify_and_update
 from user_service import _safe_str
 from services import (
@@ -9,18 +11,20 @@ from services import (
     get_user_emails, get_pending_followups, update_email_status, get_email_stats
 )
 import mailer
+import db
 
 email_bp = Blueprint("email", __name__)
 
 
 @email_bp.route("/api/send_email", methods=["POST"])
+@login_required
 def api_send_email():
     data = request.get_json()
     to_email = _safe_str(data.get("to_email")).strip()
     subject = _safe_str(data.get("subject")).strip()
     body = _safe_str(data.get("body")).strip()
     to_name = _safe_str(data.get("to_name")).strip()
-    user_email = _safe_str(data.get("user_email")).strip()
+    user_email = g.user_email
 
     if not to_email or not subject or not body:
         return jsonify({"success": False, "error": "缺少必要参数：to_email, subject, body"}), 400
@@ -51,13 +55,15 @@ def api_send_email():
 
 
 @email_bp.route("/api/email/smtp_send", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
 def api_smtp_send():
     data = request.get_json()
     to_email = _safe_str(data.get("to_email")).strip()
     subject = _safe_str(data.get("subject")).strip()
     body = _safe_str(data.get("body")).strip()
     to_name = _safe_str(data.get("to_name")).strip()
-    user_email = _safe_str(data.get("user_email")).strip()
+    user_email = g.user_email
 
     if not to_email or not subject or not body:
         return jsonify({"success": False, "error": "缺少必要参数"}), 400
@@ -72,11 +78,11 @@ def api_smtp_send():
 
 
 @email_bp.route("/api/emails/sent", methods=["POST"])
+@rate_limit(max_requests=30, window=60)
+@login_required
 def api_get_sent():
     data = request.get_json() or {}
-    email = _safe_str(data.get("user_email")).strip().lower()
-    if not email:
-        return jsonify({"success": False, "error": "Missing user_email"}), 400
+    email = g.user_email
     emails = get_user_emails(email)
     # 如果没找到，也尝试加载所有邮件（兼容QQ邮箱发送场景）
     if not emails:
@@ -87,17 +93,21 @@ def api_get_sent():
 
 
 @email_bp.route("/api/emails/pending", methods=["POST"])
+@rate_limit(max_requests=30, window=60)
+@login_required
 def api_pending():
     data = request.get_json() or {}
-    email = _safe_str(data.get("user_email")).strip().lower()
+    email = g.user_email
     pending = get_pending_followups(email)
     return jsonify({"success": True, "pending": pending, "count": len(pending)})
 
 
 @email_bp.route("/api/emails/status", methods=["POST"])
+@rate_limit(max_requests=30, window=60)
+@login_required
 def api_status():
     data = request.get_json() or {}
-    ue = _safe_str(data.get("user_email")).lower()
+    ue = g.user_email
     te = _safe_str(data.get("to_email")).lower()
     st = _safe_str(data.get("status")).lower()
     reply_text = _safe_str(data.get("reply_text")).strip()
@@ -116,11 +126,11 @@ def api_status():
 
 
 @email_bp.route("/api/email/stats", methods=["POST"])
+@rate_limit(max_requests=30, window=60)
+@login_required
 def api_stats():
     data = request.get_json() or {}
-    email = _safe_str(data.get("user_email")).strip().lower()
-    if not email:
-        return jsonify({"success": False, "error": "Missing user_email"}), 400
+    email = g.user_email
     return jsonify({"success": True, "stats": get_email_stats(email)})
 
 
@@ -134,9 +144,11 @@ def api_open(tracking_id):
 
 
 @email_bp.route("/api/email/classify", methods=["POST"])
+@rate_limit(max_requests=20, window=60)
+@login_required
 def api_classify():
     data = request.get_json() or {}
-    user_email = _safe_str(data.get("user_email")).lower()
+    user_email = g.user_email
     to_email = _safe_str(data.get("to_email")).lower()
     reply_text = _safe_str(data.get("reply_text")).strip()
     subject = _safe_str(data.get("subject")).strip()
@@ -147,10 +159,12 @@ def api_classify():
 
 
 @email_bp.route("/api/email/sync", methods=["POST"])
+@rate_limit(max_requests=5, window=300)
+@login_required
 def api_sync():
     """IMAP 收件箱同步 — 自动检测客户回复"""
     data = request.get_json() or {}
-    email_addr = _safe_str(data.get("user_email")).strip().lower()
+    email_addr = g.user_email
 
     try:
         from imap_sync import check_replies, is_imap_configured
@@ -176,6 +190,7 @@ def api_sync():
 # SMTP 设置 — 页面配置
 # ============================================================
 @email_bp.route("/api/email/smtp_settings", methods=["GET"])
+@login_required
 def api_smtp_get():
     from smtp_config import load_config
     cfg = load_config()
@@ -187,6 +202,8 @@ def api_smtp_get():
 
 
 @email_bp.route("/api/email/smtp_settings", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
 def api_smtp_save():
     data = request.get_json() or {}
     email = _safe_str(data.get("smtp_email")).strip()
@@ -204,6 +221,8 @@ def api_smtp_save():
 
 
 @email_bp.route("/api/email/smtp_test", methods=["POST"])
+@rate_limit(max_requests=5, window=300)
+@login_required
 def api_smtp_test():
     data = request.get_json() or {}
     email = _safe_str(data.get("smtp_email")).strip()
@@ -221,4 +240,81 @@ def api_smtp_test():
     result = mailer.send_email_smtp(
         to_email=email, subject="TradeMaster SMTP 测试", body="这是一封测试邮件。\n\n如果你收到这封邮件，说明 SMTP 配置成功！\n\n— TradeMaster 外贸通",
         to_name="", from_name=name)
+    return jsonify(result)
+
+
+# ============================================================
+# 两阶段邮件确认发送
+# ============================================================
+@email_bp.route("/api/email/draft", methods=["POST"])
+@rate_limit(max_requests=30, window=300)
+@login_required
+def api_create_draft():
+    """生成邮件草稿（不发送）。返回 draft_id 供用户确认后发送。"""
+    data = request.get_json() or {}
+    to_email = _safe_str(data.get("to_email")).strip()
+    subject = _safe_str(data.get("subject")).strip()
+    body = _safe_str(data.get("body")).strip()
+    to_name = _safe_str(data.get("to_name")).strip()
+
+    if not to_email or not subject or not body:
+        return jsonify({"success": False, "error": "缺少必要参数：to_email, subject, body"}), 400
+
+    draft_id = uuid.uuid4().hex
+    db.kv_set(f"email_draft:{draft_id}", {
+        "to_email": to_email,
+        "subject": subject,
+        "body": body,
+        "to_name": to_name,
+        "user_email": g.user_email,
+        "created_at": db._now(),
+    })
+
+    return jsonify({
+        "success": True,
+        "draft_id": draft_id,
+        "preview": {"to_email": to_email, "subject": subject, "body": body, "to_name": to_name},
+        "message": "草稿已生成，请在前端确认后发送",
+    })
+
+
+@email_bp.route("/api/email/draft/<draft_id>/send", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
+def api_send_draft(draft_id):
+    """确认并发送邮件草稿。需 idempotency_key 防止重复发送。"""
+    data = request.get_json() or {}
+    idempotency_key = _safe_str(data.get("idempotency_key")).strip()
+
+    if not idempotency_key:
+        return jsonify({"success": False, "error": "缺少 idempotency_key（用于防重复发送）"}), 400
+
+    # 检查重复发送
+    if db.kv_get(f"idempotency:{idempotency_key}"):
+        return jsonify({"success": False, "error": "该邮件已发送，请勿重复操作"}), 409
+
+    draft = db.kv_get(f"email_draft:{draft_id}")
+    if not draft:
+        return jsonify({"success": False, "error": "草稿不存在或已过期"}), 404
+
+    if draft["user_email"] != g.user_email:
+        return jsonify({"success": False, "error": "无权操作此草稿"}), 403
+
+    if not mailer.is_configured():
+        return jsonify({"success": False, "error": "SMTP 未配置。请在页面设置中填写邮箱信息"}), 400
+
+    # 先标记幂等键（防竞态）
+    db.kv_set(f"idempotency:{idempotency_key}", {
+        "draft_id": draft_id, "sent_at": db._now()
+    })
+
+    result = mailer.send_email_smtp(
+        to_email=draft["to_email"], subject=draft["subject"],
+        body=draft["body"], to_name=draft["to_name"], from_name="")
+    if result.get("success"):
+        eid, tid = track_sent_email(g.user_email, draft["to_email"], draft["to_name"],
+                                     draft["subject"], draft["body"])
+        result["tracking_id"] = tid
+        db.kv_delete(f"email_draft:{draft_id}")
+
     return jsonify(result)

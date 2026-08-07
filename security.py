@@ -1,52 +1,141 @@
+# -*- coding: utf-8 -*-
 """
 安全模块 — 速率限制 + 输入校验
+支持内存 / Redis 双后端（通过 RATE_LIMIT_BACKEND 环境变量切换）
 """
 import time
 import json
 import re
 import hashlib
+import os
+from abc import ABC, abstractmethod
 from functools import wraps
 from flask import request, jsonify
 
-# 速率限制（内存版，最多存储 10000 个条目）
-_rate_store = {}
-MAX_RATE_ENTRIES = 10000
+# ============================================================
+# 可信代理校验（防 X-Forwarded-For 伪造）
+# ============================================================
+
+def _is_trusted_proxy(remote_addr: str) -> bool:
+    """检查请求来源是否为可信代理"""
+    if not remote_addr:
+        return False
+    from config import TRUSTED_PROXIES
+    for proxy in TRUSTED_PROXIES:
+        if "/" in proxy:
+            # CIDR 格式暂不支持，精确匹配
+            if remote_addr == proxy.split("/")[0]:
+                return True
+        elif remote_addr == proxy:
+            return True
+    return False
 
 
-def _clean_rate_store():
-    """定期清理过期条目"""
-    if len(_rate_store) > MAX_RATE_ENTRIES:
+def _get_client_ip() -> str:
+    """获取真实客户端 IP（优先从可信代理提供的头部读取）"""
+    remote = request.remote_addr or "unknown"
+
+    x_forwarded_for = request.headers.get("X-Forwarded-For", "")
+    x_real_ip = request.headers.get("X-Real-IP", "")
+
+    if _is_trusted_proxy(remote):
+        if x_forwarded_for:
+            return x_forwarded_for.split(",")[0].strip()
+        if x_real_ip:
+            return x_real_ip.strip()
+
+    return remote
+
+
+# ============================================================
+# RateLimitStore 抽象层
+# ============================================================
+
+class RateLimitStore(ABC):
+    @abstractmethod
+    def get(self, key: str) -> tuple | None:
+        """返回 (count, start_time, window) 或 None"""
+        ...
+
+    @abstractmethod
+    def set(self, key: str, value: tuple):
+        ...
+
+    @abstractmethod
+    def cleanup(self):
+        ...
+
+
+class MemoryRateLimitStore(RateLimitStore):
+    """内存版（默认，但不适合多 worker 部署）"""
+    def __init__(self, max_entries: int = 10000):
+        self._store = {}
+        self._max_entries = max_entries
+
+    def get(self, key: str) -> tuple | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: tuple):
+        if len(self._store) > self._max_entries:
+            self.cleanup()
+        self._store[key] = value
+
+    def cleanup(self):
         now = time.time()
-        expired = [k for k, v in _rate_store.items() if v[0] + v[1] < now]
+        expired = [k for k, v in self._store.items() if v[0] + v[1] < now]
         for k in expired:
-            del _rate_store[k]
+            del self._store[k]
+
+
+# 工厂函数
+def _get_rate_store() -> RateLimitStore:
+    backend = os.getenv("RATE_LIMIT_BACKEND", "memory")
+    if backend == "memory":
+        return _memory_store
+    # 未来扩展: RedisRateLimitStore
+    return _memory_store
+
+
+_memory_store = MemoryRateLimitStore()
 
 
 def rate_limit(max_requests: int = 20, window: int = 60):
-    """IP 维度速率限制装饰器：window 秒内最多 max_requests 次"""
+    """
+    IP 维度速率限制装饰器：window 秒内最多 max_requests 次。
+    未来可通过 RATE_LIMIT_BACKEND=redis 切换到分布式限流。
+    """
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown")
+            ip = _get_client_ip()
             key = f"rl:{ip}:{f.__name__}"
             now = time.time()
-            _clean_rate_store()
+            store = _get_rate_store()
+            store.cleanup()
 
-            if key in _rate_store:
-                count, start, _ = _rate_store[key]
+            entry = store.get(key)
+            if entry:
+                count, start, _ = entry
                 if now - start < window:
                     if count >= max_requests:
-                        return jsonify({"error": "请求过于频繁，请稍后再试", "retry_after": int(window - (now - start))}), 429
-                    _rate_store[key] = (count + 1, start, window)
+                        return jsonify({
+                            "error": "请求过于频繁，请稍后再试",
+                            "retry_after": int(window - (now - start))
+                        }), 429
+                    store.set(key, (count + 1, start, window))
                 else:
-                    _rate_store[key] = (1, now, window)
+                    store.set(key, (1, now, window))
             else:
-                _rate_store[key] = (1, now, window)
+                store.set(key, (1, now, window))
 
             return f(*args, **kwargs)
         return wrapped
     return decorator
 
+
+# ============================================================
+# 输入校验
+# ============================================================
 
 def validate_input(schema: dict, data: dict) -> tuple:
     """
@@ -60,7 +149,6 @@ def validate_input(schema: dict, data: dict) -> tuple:
     for field, rules in schema.items():
         val = data.get(field)
 
-        # required check
         if rules.get("required") and (val is None or (isinstance(val, str) and not val.strip())):
             errors.append(f"{field} 为必填项")
             continue
@@ -69,7 +157,6 @@ def validate_input(schema: dict, data: dict) -> tuple:
             cleaned[field] = rules.get("default", None)
             continue
 
-        # type check
         if isinstance(val, str):
             val = val.strip()
 
@@ -87,7 +174,7 @@ def validate_input(schema: dict, data: dict) -> tuple:
             if not isinstance(val, str):
                 val = ""
             if "maxlen" in rules and len(val) > rules["maxlen"]:
-                val = val[: rules["maxlen"]]
+                val = val[:rules["maxlen"]]
         elif ftype == "int":
             try:
                 val = int(val)
@@ -97,7 +184,6 @@ def validate_input(schema: dict, data: dict) -> tuple:
 
         cleaned[field] = val
 
-    # defaults for missing optional fields
     for field, rules in schema.items():
         if field not in cleaned and "default" in rules:
             cleaned[field] = rules["default"]

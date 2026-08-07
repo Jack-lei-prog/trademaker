@@ -1,6 +1,7 @@
 """
 外部数据源模块
 为 tools.py 提供真实 API 数据，替代模拟数据
+所有结果统一携带 source / source_url / fetched_at / confidence 字段
 """
 
 import os
@@ -9,7 +10,34 @@ import re
 import threading
 import requests
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+# ============================================================
+# 数据溯源辅助函数
+# ============================================================
+
+def enrich_result(
+    result: Dict[str, Any],
+    source: str,
+    source_url: str = "",
+    confidence: float = 0.7,
+) -> Dict[str, Any]:
+    """为数据结构统一添加溯源字段，不覆盖已有值"""
+    result.setdefault("source", source)
+    result.setdefault("source_url", source_url)
+    result.setdefault("fetched_at", datetime.now(timezone.utc).isoformat())
+    result.setdefault("confidence", confidence)
+    return result
+
+# ============================================================
+# 数据源健康状态（用于健康检查和降级提示）
+# ============================================================
+DATA_SOURCE_STATUS = {
+    "wikidata": "ok",          # ok | degraded | failed
+    "opencorporates": "ok",
+    "llm_company": "ok",
+    "exchange_rate": "ok",
+}
 
 
 # ============================================================
@@ -35,12 +63,17 @@ def fetch_exchange_rates() -> Dict[str, Any]:
         if resp.status_code == 200:
             data = resp.json()
             if data.get("result") == "success":
+                data = enrich_result(data, "open.er-api.com",
+                                     "https://open.er-api.com/v6/latest/USD", 0.95)
                 with _exchange_lock:
                     EXCHANGE_RATE_CACHE = data
                     EXCHANGE_CACHE_TIME = datetime.now()
+                DATA_SOURCE_STATUS["exchange_rate"] = "ok"
                 return data
     except Exception:
         pass
+
+    DATA_SOURCE_STATUS["exchange_rate"] = "degraded"
 
     with _exchange_lock:
         return EXCHANGE_RATE_CACHE or None
@@ -91,15 +124,16 @@ def search_companies_wikidata(query: str, limit: int = 10) -> List[Dict[str, Any
         if resp2.status_code != 200:
             # 无详情时仍返回搜索结果
             for item in items[:limit]:
-                results.append({
-                    "company_name": item.get("label", item.get("id", "Unknown")),
+                wd_id = item.get("id", "")
+                wd_url = item.get("url", f"https://www.wikidata.org/wiki/{wd_id}")
+                results.append(enrich_result({
+                    "company_name": item.get("label", wd_id or "Unknown"),
                     "description": item.get("description", ""),
-                    "wikidata_id": item.get("id", ""),
-                    "wikidata_url": item.get("url", f"https://www.wikidata.org/wiki/{item.get('id', '')}"),
+                    "wikidata_id": wd_id,
+                    "wikidata_url": wd_url,
                     "industry": "Unknown",
                     "headquarters": "Unknown",
-                    "source": "Wikidata",
-                })
+                }, "Wikidata", wd_url, 0.80))
             return results
 
         entities = (resp2.json().get("entities", {}) or {})
@@ -132,18 +166,20 @@ def search_companies_wikidata(query: str, limit: int = 10) -> List[Dict[str, Any
                         # 可能是行业类别 - 先记录
                         pass
 
-            results.append({
+            wd_url = f"https://www.wikidata.org/wiki/{entity_id}"
+            results.append(enrich_result({
                 "company_name": name,
                 "description": desc,
                 "wikidata_id": entity_id,
-                "wikidata_url": f"https://www.wikidata.org/wiki/{entity_id}",
+                "wikidata_url": wd_url,
                 "industry": industry,
                 "headquarters": headquarters,
-                "source": "Wikidata",
-            })
+            }, "Wikidata", wd_url, 0.80))
 
     except Exception:
-        pass
+        DATA_SOURCE_STATUS["wikidata"] = "degraded"
+    else:
+        DATA_SOURCE_STATUS["wikidata"] = "ok" if results else "degraded"
     return results
 
 
@@ -158,18 +194,19 @@ def search_companies_opencorp(query: str, limit: int = 10) -> List[Dict[str, Any
             companies = (data.get("results", {}) or {}).get("companies", [])
             for item in companies[:limit]:
                 c = item.get("company", {})
-                results.append({
+                oc_url = c.get("opencorporates_url", "")
+                results.append(enrich_result({
                     "company_name": c.get("name", "Unknown"),
                     "jurisdiction": c.get("jurisdiction_code", "").upper(),
                     "company_number": c.get("company_number", ""),
                     "status": c.get("current_status", "Unknown"),
                     "registered_address": c.get("registered_address_in_full", ""),
                     "company_type": c.get("company_type", ""),
-                    "opencorporates_url": c.get("opencorporates_url", ""),
-                    "source": "OpenCorporates",
-                })
+                    "opencorporates_url": oc_url,
+                }, "OpenCorporates", oc_url, 0.85))
+            DATA_SOURCE_STATUS["opencorporates"] = "ok"
     except Exception:
-        pass
+        DATA_SOURCE_STATUS["opencorporates"] = "degraded"
     return results
 
 
@@ -200,7 +237,8 @@ def search_companies_llm(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                 text = "\n".join(lines)
             companies = json.loads(text)
             if isinstance(companies, list):
-                return [{
+                DATA_SOURCE_STATUS["llm_company"] = "ok"
+                return [enrich_result({
                     "company_name": c.get("company_name", "Unknown"),
                     "jurisdiction": c.get("country", "Unknown"),
                     "industry": query,
@@ -210,10 +248,10 @@ def search_companies_llm(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                     "why_relevant": c.get("why_relevant", ""),
                     "buyer_type": c.get("type", ""),
                     "description": c.get("why_relevant", c.get("description", "")),
-                    "source": "AI Trade Database",
-                } for c in companies[:limit]]
+                }, "LLM-generated", "", 0.50) for c in companies[:limit]]
         except json.JSONDecodeError:
             pass
+    DATA_SOURCE_STATUS["llm_company"] = "degraded"
     return []
 
 
@@ -295,7 +333,8 @@ def get_company_detail_opencorp(jurisdiction: str, company_number: str) -> Optio
             data = resp.json()
             c = (data.get("results", {}) or {}).get("company", {})
             if c:
-                return {
+                oc_url = c.get("opencorporates_url", "")
+                return enrich_result({
                     "company_name": c.get("name", "Unknown"),
                     "jurisdiction": c.get("jurisdiction_code", "").upper(),
                     "status": c.get("current_status", ""),
@@ -310,8 +349,8 @@ def get_company_detail_opencorp(jurisdiction: str, company_number: str) -> Optio
                         for o in (c.get("officers", []) or [])[:5]
                     ],
                     "industry_codes": c.get("industry_codes", []),
-                    "opencorporates_url": c.get("opencorporates_url", ""),
-                }
+                    "opencorporates_url": oc_url,
+                }, "OpenCorporates", oc_url, 0.85)
     except Exception:
         pass
     return None

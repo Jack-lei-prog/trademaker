@@ -1,6 +1,8 @@
 """评价 Blueprint — /api/evaluate, /api/evaluate/*"""
 import os, json
 from flask import Blueprint, request, jsonify, Response
+from security import rate_limit
+from auth_middleware import login_required
 from evaluator import evaluate_response, kimi_evaluate, kimi_available, dual_evaluate
 from services import _safe_str, call_synscale_stream
 
@@ -8,6 +10,8 @@ evaluate_bp = Blueprint("evaluate", __name__)
 
 
 @evaluate_bp.route("/api/evaluate", methods=["POST"])
+@rate_limit(max_requests=20, window=300)
+@login_required
 def evaluate():
     data = request.get_json()
     question = _safe_str(data.get("question")).strip()
@@ -21,6 +25,8 @@ def evaluate():
 
 
 @evaluate_bp.route("/api/evaluate/improve", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
 def improve():
     data = request.get_json()
     user_question = _safe_str(data.get("question")).strip()
@@ -56,6 +62,8 @@ def improve():
 
 
 @evaluate_bp.route("/api/evaluate/kimi", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
 def kimi():
     data = request.get_json()
     question = _safe_str(data.get("question")).strip()
@@ -69,6 +77,8 @@ def kimi():
 
 
 @evaluate_bp.route("/api/evaluate/dual", methods=["POST"])
+@rate_limit(max_requests=10, window=300)
+@login_required
 def dual():
     data = request.get_json()
     question = _safe_str(data.get("question")).strip()
