@@ -222,9 +222,12 @@ def search_companies_llm(query: str, limit: int = 10) -> List[Dict[str, Any]]:
         f"List {limit} real companies worldwide that import, distribute, or buy: {query}.\n"
         "Return ONLY a JSON array. Each object: company_name, country, website, email, "
         "what_they_buy (1 line), why_relevant (1 line), type (importer/distributor/wholesaler/retailer/manufacturer).\n"
-        "For email: if you know the company's actual procurement/contact email, provide it. "
-        "Otherwise use common patterns like purchasing@website, info@website, sales@website, or inquiry@website based on their domain.\n"
-        "IMPORTANT: always include an email field for every company."
+        "CRITICAL EMAIL RULES:\n"
+        "- ONLY provide an email if you are 100% certain it is the company's real, verified procurement contact.\n"
+        "- NEVER guess or fabricate emails using patterns like purchasing@, info@, sales@ — these are NOT verified.\n"
+        "- If you don't know the real email, set email to empty string \"\".\n"
+        "- An empty email is better than a wrong email that will bounce or damage sender reputation.\n"
+        "- The email field is required in JSON but its value should be \"\" if unknown."
     )
     result = call_llm(system, user, max_tokens=2000, timeout=25)
     if result:

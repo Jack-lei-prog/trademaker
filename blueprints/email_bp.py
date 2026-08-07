@@ -303,6 +303,19 @@ def api_send_draft(draft_id):
     if not mailer.is_configured():
         return jsonify({"success": False, "error": "SMTP 未配置。请在页面设置中填写邮箱信息"}), 400
 
+    # 检查邮箱是否已通过验证（未被推测的邮箱才允许直接发送）
+    guessed_patterns = ["purchasing@", "info@", "sales@", "inquiry@", "procurement@",
+                       "import@", "export@", "contact@", "admin@", "office@"]
+    to_email_lower = draft.get("to_email", "").lower()
+    is_guessed = any(to_email_lower.startswith(p) for p in guessed_patterns)
+    if is_guessed and not data.get("confirm_unverified"):
+        return jsonify({
+            "success": False,
+            "error": "此邮箱疑似基于域名推测生成，尚未验证有效性，直接发送可能导致退信或标记为垃圾邮件。请先验证邮箱有效后再发送。",
+            "require_confirmation": True,
+            "hint": "建议使用 Hunter.io / FindThatLead / Snov.io 验证邮箱有效性，或确认后添加 confirm_unverified: true 强制发送",
+        }), 422
+
     # 先标记幂等键（防竞态）
     db.kv_set(f"idempotency:{idempotency_key}", {
         "draft_id": draft_id, "sent_at": db._now()
